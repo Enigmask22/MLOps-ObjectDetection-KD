@@ -12,8 +12,8 @@ from fastapi import FastAPI, Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from src.monitoring.metrics import (
-    HTTP_REQUESTS_TOTAL,
     HTTP_REQUEST_DURATION,
+    HTTP_REQUESTS_TOTAL,
     get_metrics_response,
     update_system_metrics,
 )

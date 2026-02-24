@@ -18,8 +18,9 @@ Hệ thống phân cấp:
             └── width, height (kích thước tương đối)
 """
 
+from __future__ import annotations
+
 from pydantic import BaseModel, Field
-from typing import Optional
 
 
 class BoundingBox(BaseModel):
@@ -160,7 +161,7 @@ class DetectionResponse(BaseModel):
         default_factory=list,
         description="Danh sách đối tượng phát hiện"
     )
-    model_version: Optional[str] = Field(
+    model_version: str | None = Field(
         default=None,
         description="Phiên bản mô hình đang phục vụ"
     )
@@ -193,7 +194,7 @@ class ErrorResponse(BaseModel):
     """
     error_code: int = Field(..., description="Mã lỗi HTTP")
     message: str = Field(..., description="Mô tả lỗi")
-    detail: Optional[str] = Field(
+    detail: str | None = Field(
         default=None,
         description="Chi tiết lỗi (debug)"
     )

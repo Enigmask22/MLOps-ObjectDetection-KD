@@ -8,7 +8,7 @@ Cung cấp giao diện web tương tác để:
 - Trực quan hóa kết quả phát hiện trên ảnh
 """
 
-from typing import Optional
+from __future__ import annotations
 
 import cv2
 import numpy as np
@@ -81,7 +81,7 @@ def draw_detections(
 
 
 def create_gradio_interface(
-    model_path: Optional[str] = None,
+    model_path: str | None = None,
 ) -> "gr.Blocks":
     """
     Tạo giao diện Gradio cho Object Detection.

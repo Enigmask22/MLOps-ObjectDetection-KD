@@ -5,16 +5,17 @@ Sử dụng thư viện logging thay vì print() để đảm bảo tính nhất
 khả năng truy vết và tuân thủ tiêu chuẩn observability.
 """
 
+from __future__ import annotations
+
 import logging
 import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import Optional
 
 
 def setup_logger(
     name: str,
-    log_file: Optional[str] = None,
+    log_file: str | None = None,
     level: int = logging.INFO,
     log_format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     max_bytes: int = 10_485_760,  # 10 MB

@@ -12,12 +12,12 @@ Thu thập và xuất các thông số hiệu suất cấp thấp:
 import psutil
 import torch
 from prometheus_client import (
+    CONTENT_TYPE_LATEST,
     Counter,
     Gauge,
     Histogram,
     Info,
     generate_latest,
-    CONTENT_TYPE_LATEST,
 )
 
 from src.utils.logger import get_logger

@@ -9,14 +9,15 @@ Sử dụng Deepchecks để so sánh phân phối giữa dữ liệu tham chi�
 Khi KS score > 0.15, hệ thống phát cảnh báo tái huấn luyện.
 """
 
+from __future__ import annotations
+
 import json
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import cv2
 import numpy as np
 
-from src.utils.helpers import load_config
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -52,7 +53,7 @@ class DataDriftDetector:
         self.drift_threshold_cv = drift_threshold_cv
 
         # Tính toán thuộc tính tham chiếu
-        self._reference_properties: Optional[dict[str, np.ndarray]] = None
+        self._reference_properties: dict[str, np.ndarray] | None = None
         self._compute_reference_properties()
 
     def _compute_reference_properties(self) -> None:
@@ -134,7 +135,7 @@ class DataDriftDetector:
     def check_drift(
         self,
         current_image_paths: list[str],
-        current_bbox_counts: Optional[list[int]] = None,
+        current_bbox_counts: list[int] | None = None,
     ) -> dict[str, Any]:
         """
         Kiểm tra Data Drift giữa dữ liệu tham chiếu và dữ liệu hiện tại.
@@ -287,7 +288,7 @@ class DataDriftDetector:
     def generate_report(
         self,
         drift_results: dict[str, Any],
-        output_path: Optional[str] = None,
+        output_path: str | None = None,
     ) -> str:
         """
         Tạo báo cáo drift dạng JSON.

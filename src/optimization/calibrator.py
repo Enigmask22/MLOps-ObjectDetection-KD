@@ -14,8 +14,9 @@ Luồng hoạt động:
 5. Lưu cache calibration để tái sử dụng
 """
 
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 
@@ -47,7 +48,7 @@ class Int8EntropyCalibrator:
         cache_file: str = "models/calibration.cache",
         batch_size: int = 8,
         image_size: int = 640,
-        num_images: Optional[int] = 500,
+        num_images: int | None = 500,
     ) -> None:
         self.cache_file = cache_file
         self.batch_size = batch_size
@@ -79,8 +80,8 @@ class Int8EntropyCalibrator:
         self.current_batch = 0
 
         # Cấp phát bộ nhớ GPU (sẽ khởi tạo khi cần)
-        self._device_input: Optional[int] = None
-        self._host_buffer: Optional[np.ndarray] = None
+        self._device_input: int | None = None
+        self._host_buffer: np.ndarray | None = None
 
         logger.info(
             "INT8 Calibrator: %d ảnh, %d batches (batch_size=%d, imgsz=%d)",
@@ -162,12 +163,12 @@ class Int8EntropyCalibrator:
         """Trả về kích thước batch calibration."""
         return self.batch_size
 
-    def get_batch(self) -> Optional[np.ndarray]:
+    def get_batch(self) -> np.ndarray | None:
         """
         Lấy batch ảnh tiếp theo cho calibration.
 
         Returns:
-            Optional[np.ndarray]: Batch ảnh (B, 3, H, W) hoặc None khi hết.
+            np.ndarray | None: Batch ảnh (B, 3, H, W) hoặc None khi hết.
         """
         if self.current_batch >= self.num_batches:
             return None
@@ -206,12 +207,12 @@ class Int8EntropyCalibrator:
 
         return actual_batch
 
-    def read_calibration_cache(self) -> Optional[bytes]:
+    def read_calibration_cache(self) -> bytes | None:
         """
         Đọc cache calibration từ tệp (nếu tồn tại).
 
         Returns:
-            Optional[bytes]: Dữ liệu cache hoặc None.
+            bytes | None: Dữ liệu cache hoặc None.
         """
         cache_path = Path(self.cache_file)
         if cache_path.exists():

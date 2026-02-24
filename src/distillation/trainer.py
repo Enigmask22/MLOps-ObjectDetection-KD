@@ -15,7 +15,6 @@ Kiến trúc luồng dữ liệu:
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 import torch
@@ -28,7 +27,7 @@ from src.distillation.losses import (
     ChannelAligner,
     CombinedDistillationLoss,
 )
-from src.utils.helpers import load_config, get_device, seed_everything
+from src.utils.helpers import get_device, load_config
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -194,7 +193,7 @@ class KDDetectionTrainer(DetectionTrainer):
         # Tạo Channel Aligners dựa trên kích thước kênh thực tế
         aligners = nn.ModuleList()
         for idx, (s_feat, t_feat) in enumerate(
-            zip(student_features, teacher_features)
+            zip(student_features, teacher_features, strict=True)
         ):
             s_channels = s_feat.shape[1]
             t_channels = t_feat.shape[1]

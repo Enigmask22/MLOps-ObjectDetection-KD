@@ -10,9 +10,11 @@ Xây dựng API bất đồng bộ (async) với các tính năng:
 - CORS middleware cho cross-origin requests
 """
 
+from __future__ import annotations
+
 import uuid
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, Optional
+from typing import AsyncGenerator
 
 import numpy as np
 import torch
@@ -33,7 +35,7 @@ from src.utils.logger import get_logger
 logger = get_logger(__name__)
 
 # Biến toàn cục cho Inference Engine
-_engine: Optional[InferenceEngine] = None
+_engine: InferenceEngine | None = None
 
 
 @asynccontextmanager

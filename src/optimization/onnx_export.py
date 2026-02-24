@@ -5,13 +5,13 @@ Chuyển đổi trọng số PyTorch (.pt) sang ONNX với hỗ trợ
 dynamic batch size và opset 17 để tương thích TensorRT.
 """
 
-from pathlib import Path
-from typing import Optional
+from __future__ import annotations
 
-import torch
+from pathlib import Path
+
 from ultralytics import YOLO
 
-from src.utils.helpers import load_config, get_device, format_model_size
+from src.utils.helpers import format_model_size
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -19,7 +19,7 @@ logger = get_logger(__name__)
 
 def export_to_onnx(
     model_path: str,
-    output_path: Optional[str] = None,
+    output_path: str | None = None,
     image_size: int = 640,
     opset_version: int = 17,
     dynamic_batch: bool = True,

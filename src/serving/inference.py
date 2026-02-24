@@ -9,9 +9,11 @@ Hỗ trợ nhiều backend suy luận:
 Đảm bảo tối ưu hóa bộ nhớ VRAM và hỗ trợ bất đồng bộ.
 """
 
+from __future__ import annotations
+
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 
@@ -129,8 +131,8 @@ class InferenceEngine:
     def predict(
         self,
         image: np.ndarray,
-        confidence_threshold: Optional[float] = None,
-        iou_threshold: Optional[float] = None,
+        confidence_threshold: float | None = None,
+        iou_threshold: float | None = None,
         request_id: str = "default",
     ) -> DetectionResponse:
         """

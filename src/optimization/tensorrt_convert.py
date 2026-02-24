@@ -10,9 +10,10 @@ Thực hiện biên dịch tối ưu phần cứng bao gồm:
 Luồng: ONNX -> TensorRT Builder -> Optimization -> Serialized Engine
 """
 
+from __future__ import annotations
+
 import time
 from pathlib import Path
-from typing import Optional
 
 from src.optimization.calibrator import Int8EntropyCalibrator
 from src.utils.helpers import load_config, format_model_size
@@ -23,14 +24,14 @@ logger = get_logger(__name__)
 
 def build_tensorrt_engine(
     onnx_path: str,
-    engine_path: Optional[str] = None,
+    engine_path: str | None = None,
     precision: str = "int8",
     workspace_size_gb: int = 4,
     min_batch: int = 1,
     opt_batch: int = 8,
     max_batch: int = 32,
     image_size: int = 640,
-    calibration_dir: Optional[str] = None,
+    calibration_dir: str | None = None,
     calibration_cache: str = "models/calibration.cache",
     num_calibration_images: int = 500,
 ) -> str:
