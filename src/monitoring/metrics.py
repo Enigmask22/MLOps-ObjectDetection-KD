@@ -97,6 +97,7 @@ MODEL_LOADED = Gauge(
 # HÀM THU THẬP METRICS
 # =============================================================================
 
+
 def update_system_metrics() -> None:
     """
     Cập nhật các chỉ số hệ thống (RAM, GPU).
@@ -147,17 +148,21 @@ def set_model_info(
         precision: Chế độ precision (fp32/fp16/int8).
         version: Phiên bản mô hình.
     """
-    MODEL_INFO.info({
-        "name": model_name,
-        "backend": backend,
-        "precision": precision,
-        "version": version,
-    })
+    MODEL_INFO.info(
+        {
+            "name": model_name,
+            "backend": backend,
+            "precision": precision,
+            "version": version,
+        }
+    )
     MODEL_LOADED.set(1)
 
     logger.info(
         "Model metrics đã cấu hình: %s (%s, %s)",
-        model_name, backend, precision,
+        model_name,
+        backend,
+        precision,
     )
 
 

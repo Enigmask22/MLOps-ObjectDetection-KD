@@ -6,9 +6,10 @@ Bao gồm: đọc cấu hình YAML, quản lý thiết bị GPU,
 """
 
 import time
+from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Generator
+from typing import Any
 
 import numpy as np
 import torch
@@ -37,7 +38,7 @@ def load_config(config_path: str = "configs/config.yaml") -> dict[str, Any]:
     if not path.exists():
         raise FileNotFoundError(f"Tệp cấu hình không tồn tại: {config_path}")
 
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         config = yaml.safe_load(f)
 
     logger.info("Đã tải cấu hình từ: %s", config_path)
@@ -116,7 +117,7 @@ def preprocess_image(
     canvas = np.full((target_size, target_size, 3), 114, dtype=np.uint8)
     pad_h = (target_size - new_h) // 2
     pad_w = (target_size - new_w) // 2
-    canvas[pad_h: pad_h + new_h, pad_w: pad_w + new_w] = resized
+    canvas[pad_h : pad_h + new_h, pad_w : pad_w + new_w] = resized
 
     # Chuyển đổi BGR -> RGB, HWC -> CHW
     canvas = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB)

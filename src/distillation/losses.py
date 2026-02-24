@@ -47,7 +47,9 @@ class ChannelAligner(nn.Module):
 
         logger.info(
             "ChannelAligner: %d -> %d -> %d kênh",
-            student_channels, mid_channels, teacher_channels,
+            student_channels,
+            mid_channels,
+            teacher_channels,
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -111,7 +113,9 @@ class FeatureDistillationLoss(nn.Module):
 
             logger.debug(
                 "Feature Loss tầng P%d: %.6f (shape: %s)",
-                idx + 3, layer_loss.item(), list(s_feat.shape),
+                idx + 3,
+                layer_loss.item(),
+                list(s_feat.shape),
             )
 
         # Trung bình hóa trên số tầng
@@ -182,7 +186,7 @@ class ResponseDistillationLoss(nn.Module):
         )
 
         # KL Divergence: D_KL(Teacher || Student)
-        cls_loss = self.kl_loss(student_soft, teacher_soft) * (self.temperature ** 2)
+        cls_loss = self.kl_loss(student_soft, teacher_soft) * (self.temperature**2)
 
         # --- Phần 2: GIoU Loss cho Bounding Box (nếu có) ---
         box_loss = torch.tensor(0.0, device=student_cls_logits.device)
@@ -196,8 +200,10 @@ class ResponseDistillationLoss(nn.Module):
 
         logger.debug(
             "Response Loss - CLS: %.6f, BOX: %.6f, Valid: %d/%d",
-            cls_loss.item(), box_loss.item(),
-            valid_mask.sum().item(), valid_mask.numel(),
+            cls_loss.item(),
+            box_loss.item(),
+            valid_mask.sum().item(),
+            valid_mask.numel(),
         )
 
         return total_loss
@@ -223,14 +229,15 @@ class ResponseDistillationLoss(nn.Module):
         inter_x2 = torch.min(pred_boxes[:, 2], target_boxes[:, 2])
         inter_y2 = torch.min(pred_boxes[:, 3], target_boxes[:, 3])
 
-        inter_area = torch.clamp(inter_x2 - inter_x1, min=0) * \
-                     torch.clamp(inter_y2 - inter_y1, min=0)
+        inter_area = torch.clamp(inter_x2 - inter_x1, min=0) * torch.clamp(
+            inter_y2 - inter_y1, min=0
+        )
 
         # Tính diện tích từng hộp
-        pred_area = (pred_boxes[:, 2] - pred_boxes[:, 0]) * \
-                    (pred_boxes[:, 3] - pred_boxes[:, 1])
-        target_area = (target_boxes[:, 2] - target_boxes[:, 0]) * \
-                      (target_boxes[:, 3] - target_boxes[:, 1])
+        pred_area = (pred_boxes[:, 2] - pred_boxes[:, 0]) * (pred_boxes[:, 3] - pred_boxes[:, 1])
+        target_area = (target_boxes[:, 2] - target_boxes[:, 0]) * (
+            target_boxes[:, 3] - target_boxes[:, 1]
+        )
 
         # Tính IoU
         union_area = pred_area + target_area - inter_area + 1e-7
@@ -283,7 +290,9 @@ class CombinedDistillationLoss(nn.Module):
 
         logger.info(
             "CombinedDistillationLoss: α_feat=%.2f, α_resp=%.2f, T=%.1f",
-            alpha_feature, alpha_response, temperature,
+            alpha_feature,
+            alpha_response,
+            temperature,
         )
 
     def forward(
@@ -314,22 +323,18 @@ class CombinedDistillationLoss(nn.Module):
             dict[str, Tensor]: Dictionary với 'total', 'task', 'feature', 'response'.
         """
         # Tính Feature-based Loss
-        feat_loss = self.feature_loss(
-            student_features, teacher_features, aligners
-        )
+        feat_loss = self.feature_loss(student_features, teacher_features, aligners)
 
         # Tính Response-based Loss
         resp_loss = self.response_loss(
-            student_cls_logits, teacher_cls_logits,
-            student_box_preds, teacher_box_preds,
+            student_cls_logits,
+            teacher_cls_logits,
+            student_box_preds,
+            teacher_box_preds,
         )
 
         # Tổng hợp: L_total = L_task + α_feat * L_feat + α_resp * L_resp
-        total_loss = (
-            task_loss
-            + self.alpha_feature * feat_loss
-            + self.alpha_response * resp_loss
-        )
+        total_loss = task_loss + self.alpha_feature * feat_loss + self.alpha_response * resp_loss
 
         loss_dict = {
             "total": total_loss,
@@ -340,8 +345,10 @@ class CombinedDistillationLoss(nn.Module):
 
         logger.debug(
             "Loss tổng hợp: total=%.4f (task=%.4f, feat=%.4f, resp=%.4f)",
-            total_loss.item(), task_loss.item(),
-            feat_loss.item(), resp_loss.item(),
+            total_loss.item(),
+            task_loss.item(),
+            feat_loss.item(),
+            resp_loss.item(),
         )
 
         return loss_dict

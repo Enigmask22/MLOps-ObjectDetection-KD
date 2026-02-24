@@ -61,7 +61,10 @@ def export_to_onnx(
     logger.info("Bắt đầu xuất ONNX: %s -> %s", model_path, output_path)
     logger.info(
         "Cấu hình: opset=%d, dynamic=%s, simplify=%s, half=%s",
-        opset_version, dynamic_batch, simplify, half,
+        opset_version,
+        dynamic_batch,
+        simplify,
+        half,
     )
 
     try:
@@ -80,7 +83,8 @@ def export_to_onnx(
 
         logger.info(
             "Xuất ONNX thành công: %s (Kích thước: %s)",
-            export_path, format_model_size(str(export_path)),
+            export_path,
+            format_model_size(str(export_path)),
         )
 
         return str(export_path)

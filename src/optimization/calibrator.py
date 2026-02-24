@@ -2,7 +2,7 @@
 INT8 Entropy Calibrator cho TensorRT.
 ======================================
 Kế thừa từ tensorrt.IInt8EntropyCalibrator2 để thực hiện
-Entropy Calibration - xác định dải động (dynamic range) 
+Entropy Calibration - xác định dải động (dynamic range)
 của các tầng kích hoạt bằng cách duyệt qua tập dữ liệu
 đại diện nhỏ.
 
@@ -57,23 +57,18 @@ class Int8EntropyCalibrator:
         # Thu thập đường dẫn ảnh
         cal_dir = Path(calibration_dir)
         if not cal_dir.exists():
-            raise FileNotFoundError(
-                f"Thư mục calibration không tồn tại: {calibration_dir}"
-            )
+            raise FileNotFoundError(f"Thư mục calibration không tồn tại: {calibration_dir}")
 
         image_extensions = {".jpg", ".jpeg", ".png", ".bmp", ".tiff"}
-        self.image_paths = sorted([
-            str(p) for p in cal_dir.rglob("*")
-            if p.suffix.lower() in image_extensions
-        ])
+        self.image_paths = sorted(
+            [str(p) for p in cal_dir.rglob("*") if p.suffix.lower() in image_extensions]
+        )
 
         if num_images is not None:
             self.image_paths = self.image_paths[:num_images]
 
         if not self.image_paths:
-            raise ValueError(
-                f"Không tìm thấy ảnh trong thư mục: {calibration_dir}"
-            )
+            raise ValueError(f"Không tìm thấy ảnh trong thư mục: {calibration_dir}")
 
         # Tính số batch
         self.num_batches = (len(self.image_paths) + batch_size - 1) // batch_size
@@ -85,20 +80,20 @@ class Int8EntropyCalibrator:
 
         logger.info(
             "INT8 Calibrator: %d ảnh, %d batches (batch_size=%d, imgsz=%d)",
-            len(self.image_paths), self.num_batches,
-            batch_size, image_size,
+            len(self.image_paths),
+            self.num_batches,
+            batch_size,
+            image_size,
         )
 
     def _allocate_gpu_memory(self) -> None:
         """Cấp phát bộ nhớ GPU bằng pycuda."""
         try:
-            import pycuda.driver as cuda
             import pycuda.autoinit  # noqa: F401 - Khởi tạo CUDA context
+            import pycuda.driver as cuda
 
             # Kích thước buffer: batch_size x 3 x H x W x sizeof(float32)
-            buffer_size = (
-                self.batch_size * 3 * self.image_size * self.image_size * 4
-            )
+            buffer_size = self.batch_size * 3 * self.image_size * self.image_size * 4
 
             self._device_input = cuda.mem_alloc(buffer_size)
             self._host_buffer = np.zeros(
@@ -112,9 +107,7 @@ class Int8EntropyCalibrator:
             )
 
         except ImportError:
-            logger.warning(
-                "pycuda không khả dụng. Sử dụng chế độ numpy fallback."
-            )
+            logger.warning("pycuda không khả dụng. Sử dụng chế độ numpy fallback.")
             self._host_buffer = np.zeros(
                 (self.batch_size, 3, self.image_size, self.image_size),
                 dtype=np.float32,
@@ -135,9 +128,7 @@ class Int8EntropyCalibrator:
         img = cv2.imread(image_path)
         if img is None:
             logger.warning("Không đọc được ảnh: %s", image_path)
-            return np.zeros(
-                (3, self.image_size, self.image_size), dtype=np.float32
-            )
+            return np.zeros((3, self.image_size, self.image_size), dtype=np.float32)
 
         # Letterbox resize
         h, w = img.shape[:2]
@@ -146,12 +137,10 @@ class Int8EntropyCalibrator:
 
         resized = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
 
-        canvas = np.full(
-            (self.image_size, self.image_size, 3), 114, dtype=np.uint8
-        )
+        canvas = np.full((self.image_size, self.image_size, 3), 114, dtype=np.uint8)
         pad_h = (self.image_size - new_h) // 2
         pad_w = (self.image_size - new_w) // 2
-        canvas[pad_h: pad_h + new_h, pad_w: pad_w + new_w] = resized
+        canvas[pad_h : pad_h + new_h, pad_w : pad_w + new_w] = resized
 
         # BGR -> RGB, HWC -> CHW, normalize
         canvas = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB)
@@ -185,12 +174,13 @@ class Int8EntropyCalibrator:
             self._host_buffer[i] = self._preprocess_image(path)
 
         # Xử lý batch cuối (có thể nhỏ hơn batch_size)
-        actual_batch = self._host_buffer[:len(batch_paths)]
+        actual_batch = self._host_buffer[: len(batch_paths)]
 
         # Sao chép dữ liệu lên GPU nếu pycuda khả dụng
         if self._device_input is not None:
             try:
                 import pycuda.driver as cuda
+
                 cuda.memcpy_htod(
                     self._device_input,
                     np.ascontiguousarray(actual_batch),
@@ -202,7 +192,9 @@ class Int8EntropyCalibrator:
 
         logger.debug(
             "Calibration batch %d/%d (%d ảnh)",
-            self.current_batch, self.num_batches, len(batch_paths),
+            self.current_batch,
+            self.num_batches,
+            len(batch_paths),
         )
 
         return actual_batch

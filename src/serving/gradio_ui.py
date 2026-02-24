@@ -10,12 +10,17 @@ Cung cấp giao diện web tương tác để:
 
 from __future__ import annotations
 
+import typing
+
 import cv2
 import numpy as np
 
 from src.serving.inference import InferenceEngine
 from src.utils.helpers import load_config
 from src.utils.logger import get_logger
+
+if typing.TYPE_CHECKING:
+    import gradio as gr
 
 logger = get_logger(__name__)
 
@@ -61,20 +66,22 @@ def draw_detections(
 
         # Vẽ nhãn
         label = f"{det.class_name} {det.confidence:.2f}"
-        label_size, _ = cv2.getTextSize(
-            label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness
-        )
+        label_size, _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)
         cv2.rectangle(
             annotated,
             (x1, y1 - label_size[1] - 10),
             (x1 + label_size[0], y1),
-            color, -1,
+            color,
+            -1,
         )
         cv2.putText(
-            annotated, label,
+            annotated,
+            label,
             (x1, y1 - 5),
             cv2.FONT_HERSHEY_SIMPLEX,
-            font_scale, (255, 255, 255), thickness,
+            font_scale,
+            (255, 255, 255),
+            thickness,
         )
 
     return annotated
@@ -82,7 +89,7 @@ def draw_detections(
 
 def create_gradio_interface(
     model_path: str | None = None,
-) -> "gr.Blocks":
+) -> gr.Blocks:
     """
     Tạo giao diện Gradio cho Object Detection.
 
@@ -167,13 +174,17 @@ def create_gradio_interface(
                     type="numpy",
                 )
                 confidence_slider = gr.Slider(
-                    minimum=0.0, maximum=1.0,
-                    value=0.25, step=0.05,
+                    minimum=0.0,
+                    maximum=1.0,
+                    value=0.25,
+                    step=0.05,
                     label="Ngưỡng tin cậy (Confidence)",
                 )
                 iou_slider = gr.Slider(
-                    minimum=0.0, maximum=1.0,
-                    value=0.45, step=0.05,
+                    minimum=0.0,
+                    maximum=1.0,
+                    value=0.45,
+                    step=0.05,
                     label="Ngưỡng chồng lấp (IoU)",
                 )
                 detect_btn = gr.Button(

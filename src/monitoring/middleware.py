@@ -15,7 +15,6 @@ from src.monitoring.metrics import (
     HTTP_REQUEST_DURATION,
     HTTP_REQUESTS_TOTAL,
     get_metrics_response,
-    update_system_metrics,
 )
 from src.utils.logger import get_logger
 
@@ -63,7 +62,9 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
             status_code = "500"
             logger.error(
                 "Lỗi middleware: %s %s - %s",
-                method, endpoint, str(e),
+                method,
+                endpoint,
+                str(e),
             )
             raise
         finally:

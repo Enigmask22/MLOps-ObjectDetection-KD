@@ -78,9 +78,7 @@ class InferenceEngine:
         else:
             raise ValueError(f"Định dạng mô hình không hỗ trợ: {suffix}")
 
-        logger.info(
-            "Đã tải mô hình [%s]: %s", self._backend, self.model_path
-        )
+        logger.info("Đã tải mô hình [%s]: %s", self._backend, self.model_path)
 
     def _load_ultralytics(self) -> None:
         """Tải mô hình YOLO qua Ultralytics API."""
@@ -98,9 +96,7 @@ class InferenceEngine:
         if self.device == "cpu":
             providers = ["CPUExecutionProvider"]
 
-        self._model = ort.InferenceSession(
-            self.model_path, providers=providers
-        )
+        self._model = ort.InferenceSession(self.model_path, providers=providers)
         self._backend = "onnxruntime"
 
         # COCO default class names
@@ -122,11 +118,10 @@ class InferenceEngine:
 
             logger.info("TensorRT engine tải thành công.")
 
-        except ImportError:
+        except ImportError as err:
             raise ImportError(
-                "tensorrt chưa được cài đặt. "
-                "Sử dụng tệp .pt hoặc .onnx thay thế."
-            )
+                "tensorrt chưa được cài đặt. Sử dụng tệp .pt hoặc .onnx thay thế."
+            ) from err
 
     def predict(
         self,
@@ -176,7 +171,9 @@ class InferenceEngine:
 
         logger.debug(
             "Suy luận [%s]: %d đối tượng trong %.2f ms",
-            request_id, len(detections), inference_ms,
+            request_id,
+            len(detections),
+            inference_ms,
         )
 
         return response
@@ -211,17 +208,19 @@ class InferenceEngine:
                 class_id = int(box.cls[0].cpu().numpy())
                 confidence = float(box.conf[0].cpu().numpy())
 
-                detections.append(DetectionItem(
-                    confidence=round(confidence, 4),
-                    class_id=class_id,
-                    class_name=self._class_names.get(class_id, f"class_{class_id}"),
-                    bbox=BoundingBox(
-                        x_center=round(float(x_center), 4),
-                        y_center=round(float(y_center), 4),
-                        width=round(float(box_w), 4),
-                        height=round(float(box_h), 4),
-                    ),
-                ))
+                detections.append(
+                    DetectionItem(
+                        confidence=round(confidence, 4),
+                        class_id=class_id,
+                        class_name=self._class_names.get(class_id, f"class_{class_id}"),
+                        bbox=BoundingBox(
+                            x_center=round(float(x_center), 4),
+                            y_center=round(float(y_center), 4),
+                            width=round(float(box_w), 4),
+                            height=round(float(box_h), 4),
+                        ),
+                    )
+                )
 
         return detections
 
@@ -242,9 +241,7 @@ class InferenceEngine:
         outputs = self._model.run(None, {input_name: input_tensor})
 
         # Hậu xử lý YOLO output
-        return self._postprocess_yolo_output(
-            outputs[0], image.shape[:2], conf, iou
-        )
+        return self._postprocess_yolo_output(outputs[0], image.shape[:2], conf, iou)
 
     def _predict_tensorrt(
         self,
@@ -258,8 +255,8 @@ class InferenceEngine:
         input_tensor = preprocess_image(image, target_size=640)
 
         try:
-            import pycuda.driver as cuda
             import pycuda.autoinit  # noqa: F401
+            import pycuda.driver as cuda
 
             context = self._model.create_execution_context()
 
@@ -286,9 +283,7 @@ class InferenceEngine:
             d_input.free()
             d_output.free()
 
-            return self._postprocess_yolo_output(
-                h_output, image.shape[:2], conf, iou
-            )
+            return self._postprocess_yolo_output(h_output, image.shape[:2], conf, iou)
 
         except ImportError:
             logger.error("pycuda không khả dụng cho TensorRT inference.")
@@ -339,19 +334,21 @@ class InferenceEngine:
         for idx in indices:
             cx, cy, bw, bh = boxes[idx]
 
-            detections.append(DetectionItem(
-                confidence=round(float(max_scores[idx]), 4),
-                class_id=int(class_ids[idx]),
-                class_name=self._class_names.get(
-                    int(class_ids[idx]), f"class_{class_ids[idx]}"
-                ),
-                bbox=BoundingBox(
-                    x_center=round(float(cx / 640), 4),
-                    y_center=round(float(cy / 640), 4),
-                    width=round(float(bw / 640), 4),
-                    height=round(float(bh / 640), 4),
-                ),
-            ))
+            detections.append(
+                DetectionItem(
+                    confidence=round(float(max_scores[idx]), 4),
+                    class_id=int(class_ids[idx]),
+                    class_name=self._class_names.get(
+                        int(class_ids[idx]), f"class_{class_ids[idx]}"
+                    ),
+                    bbox=BoundingBox(
+                        x_center=round(float(cx / 640), 4),
+                        y_center=round(float(cy / 640), 4),
+                        width=round(float(bw / 640), 4),
+                        height=round(float(bh / 640), 4),
+                    ),
+                )
+            )
 
         return detections
 
@@ -403,20 +400,86 @@ class InferenceEngine:
     def _get_coco_names() -> dict[int, str]:
         """Trả về dictionary tên lớp COCO mặc định."""
         names = [
-            "person", "bicycle", "car", "motorcycle", "airplane", "bus",
-            "train", "truck", "boat", "traffic light", "fire hydrant",
-            "stop sign", "parking meter", "bench", "bird", "cat", "dog",
-            "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe",
-            "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee",
-            "skis", "snowboard", "sports ball", "kite", "baseball bat",
-            "baseball glove", "skateboard", "surfboard", "tennis racket",
-            "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl",
-            "banana", "apple", "sandwich", "orange", "broccoli", "carrot",
-            "hot dog", "pizza", "donut", "cake", "chair", "couch",
-            "potted plant", "bed", "dining table", "toilet", "tv", "laptop",
-            "mouse", "remote", "keyboard", "cell phone", "microwave",
-            "oven", "toaster", "sink", "refrigerator", "book", "clock",
-            "vase", "scissors", "teddy bear", "hair drier", "toothbrush",
+            "person",
+            "bicycle",
+            "car",
+            "motorcycle",
+            "airplane",
+            "bus",
+            "train",
+            "truck",
+            "boat",
+            "traffic light",
+            "fire hydrant",
+            "stop sign",
+            "parking meter",
+            "bench",
+            "bird",
+            "cat",
+            "dog",
+            "horse",
+            "sheep",
+            "cow",
+            "elephant",
+            "bear",
+            "zebra",
+            "giraffe",
+            "backpack",
+            "umbrella",
+            "handbag",
+            "tie",
+            "suitcase",
+            "frisbee",
+            "skis",
+            "snowboard",
+            "sports ball",
+            "kite",
+            "baseball bat",
+            "baseball glove",
+            "skateboard",
+            "surfboard",
+            "tennis racket",
+            "bottle",
+            "wine glass",
+            "cup",
+            "fork",
+            "knife",
+            "spoon",
+            "bowl",
+            "banana",
+            "apple",
+            "sandwich",
+            "orange",
+            "broccoli",
+            "carrot",
+            "hot dog",
+            "pizza",
+            "donut",
+            "cake",
+            "chair",
+            "couch",
+            "potted plant",
+            "bed",
+            "dining table",
+            "toilet",
+            "tv",
+            "laptop",
+            "mouse",
+            "remote",
+            "keyboard",
+            "cell phone",
+            "microwave",
+            "oven",
+            "toaster",
+            "sink",
+            "refrigerator",
+            "book",
+            "clock",
+            "vase",
+            "scissors",
+            "teddy bear",
+            "hair drier",
+            "toothbrush",
         ]
         return {i: name for i, name in enumerate(names)}
 

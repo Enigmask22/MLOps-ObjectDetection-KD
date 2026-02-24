@@ -37,26 +37,17 @@ class BoundingBox(BaseModel):
         width: Chiều rộng hộp (0.0 - 1.0).
         height: Chiều cao hộp (0.0 - 1.0).
     """
-    x_center: float = Field(
-        ..., ge=0.0, le=1.0,
-        description="Tọa độ tâm X (chuẩn hóa 0-1)"
-    )
-    y_center: float = Field(
-        ..., ge=0.0, le=1.0,
-        description="Tọa độ tâm Y (chuẩn hóa 0-1)"
-    )
-    width: float = Field(
-        ..., ge=0.0, le=1.0,
-        description="Chiều rộng hộp (chuẩn hóa 0-1)"
-    )
-    height: float = Field(
-        ..., ge=0.0, le=1.0,
-        description="Chiều cao hộp (chuẩn hóa 0-1)"
-    )
 
-    model_config = {"json_schema_extra": {
-        "examples": [{"x_center": 0.5, "y_center": 0.5, "width": 0.3, "height": 0.4}]
-    }}
+    x_center: float = Field(..., ge=0.0, le=1.0, description="Tọa độ tâm X (chuẩn hóa 0-1)")
+    y_center: float = Field(..., ge=0.0, le=1.0, description="Tọa độ tâm Y (chuẩn hóa 0-1)")
+    width: float = Field(..., ge=0.0, le=1.0, description="Chiều rộng hộp (chuẩn hóa 0-1)")
+    height: float = Field(..., ge=0.0, le=1.0, description="Chiều cao hộp (chuẩn hóa 0-1)")
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [{"x_center": 0.5, "y_center": 0.5, "width": 0.3, "height": 0.4}]
+        }
+    }
 
 
 class DetectionItem(BaseModel):
@@ -72,22 +63,11 @@ class DetectionItem(BaseModel):
         class_name: Tên lớp đối tượng (dạng chuỗi).
         bbox: Hộp giới hạn tọa độ chuẩn hóa.
     """
-    confidence: float = Field(
-        ..., ge=0.0, le=1.0,
-        description="Độ tin cậy phát hiện"
-    )
-    class_id: int = Field(
-        ..., ge=0,
-        description="Mã định danh lớp đối tượng"
-    )
-    class_name: str = Field(
-        ..., min_length=1,
-        description="Tên lớp đối tượng"
-    )
-    bbox: BoundingBox = Field(
-        ...,
-        description="Tọa độ hộp giới hạn chuẩn hóa"
-    )
+
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Độ tin cậy phát hiện")
+    class_id: int = Field(..., ge=0, description="Mã định danh lớp đối tượng")
+    class_name: str = Field(..., min_length=1, description="Tên lớp đối tượng")
+    bbox: BoundingBox = Field(..., description="Tọa độ hộp giới hạn chuẩn hóa")
 
 
 class ImageSize(BaseModel):
@@ -99,6 +79,7 @@ class ImageSize(BaseModel):
         height: Chiều cao (pixels).
         channels: Số kênh màu (thường là 3 cho RGB).
     """
+
     width: int = Field(..., gt=0, description="Chiều rộng (pixels)")
     height: int = Field(..., gt=0, description="Chiều cao (pixels)")
     channels: int = Field(default=3, gt=0, description="Số kênh màu")
@@ -113,18 +94,14 @@ class DetectionRequest(BaseModel):
         iou_threshold: Ngưỡng IoU cho NMS.
         max_detections: Số đối tượng tối đa trả về.
     """
+
     confidence_threshold: float = Field(
-        default=0.25, ge=0.0, le=1.0,
-        description="Ngưỡng tin cậy tối thiểu"
+        default=0.25, ge=0.0, le=1.0, description="Ngưỡng tin cậy tối thiểu"
     )
     iou_threshold: float = Field(
-        default=0.45, ge=0.0, le=1.0,
-        description="Ngưỡng IoU cho Non-Maximum Suppression"
+        default=0.45, ge=0.0, le=1.0, description="Ngưỡng IoU cho Non-Maximum Suppression"
     )
-    max_detections: int = Field(
-        default=300, ge=1, le=1000,
-        description="Số phát hiện tối đa"
-    )
+    max_detections: int = Field(default=300, ge=1, le=1000, description="Số phát hiện tối đa")
 
 
 class DetectionResponse(BaseModel):
@@ -141,30 +118,15 @@ class DetectionResponse(BaseModel):
         num_detections: Tổng số đối tượng phát hiện được.
         detections: Danh sách chi tiết các đối tượng.
     """
-    request_id: str = Field(
-        ...,
-        description="Mã định danh yêu cầu (UUID)"
-    )
-    inference_time_ms: float = Field(
-        ..., ge=0.0,
-        description="Thời gian suy luận (ms)"
-    )
-    image_size: ImageSize = Field(
-        ...,
-        description="Kích thước hình ảnh gốc"
-    )
-    num_detections: int = Field(
-        ..., ge=0,
-        description="Tổng số đối tượng phát hiện"
-    )
+
+    request_id: str = Field(..., description="Mã định danh yêu cầu (UUID)")
+    inference_time_ms: float = Field(..., ge=0.0, description="Thời gian suy luận (ms)")
+    image_size: ImageSize = Field(..., description="Kích thước hình ảnh gốc")
+    num_detections: int = Field(..., ge=0, description="Tổng số đối tượng phát hiện")
     detections: list[DetectionItem] = Field(
-        default_factory=list,
-        description="Danh sách đối tượng phát hiện"
+        default_factory=list, description="Danh sách đối tượng phát hiện"
     )
-    model_version: str | None = Field(
-        default=None,
-        description="Phiên bản mô hình đang phục vụ"
-    )
+    model_version: str | None = Field(default=None, description="Phiên bản mô hình đang phục vụ")
 
 
 class HealthResponse(BaseModel):
@@ -177,6 +139,7 @@ class HealthResponse(BaseModel):
         gpu_available: GPU có khả dụng không.
         version: Phiên bản ứng dụng.
     """
+
     status: str = Field(..., description="Trạng thái dịch vụ")
     model_loaded: bool = Field(..., description="Mô hình đã tải")
     gpu_available: bool = Field(..., description="GPU khả dụng")
@@ -192,9 +155,7 @@ class ErrorResponse(BaseModel):
         message: Mô tả lỗi chi tiết.
         detail: Thông tin bổ sung (debug).
     """
+
     error_code: int = Field(..., description="Mã lỗi HTTP")
     message: str = Field(..., description="Mô tả lỗi")
-    detail: str | None = Field(
-        default=None,
-        description="Chi tiết lỗi (debug)"
-    )
+    detail: str | None = Field(default=None, description="Chi tiết lỗi (debug)")

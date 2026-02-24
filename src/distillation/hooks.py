@@ -51,7 +51,8 @@ class FeatureExtractor:
         self._register_hooks()
         logger.info(
             "FeatureExtractor: Đã đăng ký hooks tại %d tầng: %s",
-            len(layer_names), layer_names,
+            len(layer_names),
+            layer_names,
         )
 
     def _get_layer_by_name(self, name: str) -> nn.Module | None:
@@ -110,8 +111,7 @@ class FeatureExtractor:
         """
         if not self._features:
             raise RuntimeError(
-                "Chưa có feature maps nào. "
-                "Hãy chạy forward pass trước khi gọi get_features()."
+                "Chưa có feature maps nào. Hãy chạy forward pass trước khi gọi get_features()."
             )
 
         features = []
@@ -143,8 +143,4 @@ class FeatureExtractor:
         self.remove_hooks()
 
     def __repr__(self) -> str:
-        return (
-            f"FeatureExtractor("
-            f"layers={self.layer_names}, "
-            f"cached_features={len(self._features)})"
-        )
+        return f"FeatureExtractor(layers={self.layer_names}, cached_features={len(self._features)})"

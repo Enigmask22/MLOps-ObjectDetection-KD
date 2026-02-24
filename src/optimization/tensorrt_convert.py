@@ -16,7 +16,7 @@ import time
 from pathlib import Path
 
 from src.optimization.calibrator import Int8EntropyCalibrator
-from src.utils.helpers import load_config, format_model_size
+from src.utils.helpers import format_model_size
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -68,11 +68,8 @@ def build_tensorrt_engine(
     try:
         import tensorrt as trt
     except ImportError:
-        logger.error(
-            "tensorrt chưa được cài đặt. "
-            "Cài đặt: pip install tensorrt"
-        )
-        raise ImportError("Thư viện tensorrt không khả dụng.")
+        logger.error("tensorrt chưa được cài đặt. Cài đặt: pip install tensorrt")
+        raise ImportError("Thư viện tensorrt không khả dụng.") from None
 
     onnx_file = Path(onnx_path)
     if not onnx_file.exists():
@@ -80,9 +77,7 @@ def build_tensorrt_engine(
 
     if engine_path is None:
         suffix = f"_{precision}"
-        engine_path = str(onnx_file.with_suffix("").with_name(
-            f"{onnx_file.stem}{suffix}.engine"
-        ))
+        engine_path = str(onnx_file.with_suffix("").with_name(f"{onnx_file.stem}{suffix}.engine"))
 
     logger.info("=" * 60)
     logger.info("BẮT ĐẦU XÂY DỰNG TENSORRT ENGINE")
@@ -114,7 +109,9 @@ def build_tensorrt_engine(
 
     logger.info(
         "ONNX đã phân tích: %d inputs, %d outputs, %d layers",
-        network.num_inputs, network.num_outputs, network.num_layers,
+        network.num_inputs,
+        network.num_outputs,
+        network.num_layers,
     )
 
     # --- Cấu hình Builder ---
@@ -159,8 +156,7 @@ def build_tensorrt_engine(
         # --- INT8 Calibration ---
         if calibration_dir is None:
             logger.warning(
-                "INT8 yêu cầu thư mục calibration. "
-                "Sử dụng --calibration-dir để chỉ định."
+                "INT8 yêu cầu thư mục calibration. Sử dụng --calibration-dir để chỉ định."
             )
         else:
             calibrator = Int8EntropyCalibrator(
@@ -235,7 +231,7 @@ def _create_trt_calibrator(calibrator: Int8EntropyCalibrator):
 
             # Chuyển dữ liệu sang GPU
             try:
-                import pycuda.driver as cuda
+                import pycuda.driver as cuda  # noqa: F401
 
                 if self.cal._device_input is not None:
                     return [int(self.cal._device_input)]
@@ -277,13 +273,13 @@ def benchmark_engine(
 
     logger.info(
         "Benchmark TensorRT: %s (batch=%d, iters=%d)",
-        engine_path, batch_size, num_iterations,
+        engine_path,
+        batch_size,
+        num_iterations,
     )
 
     # Tạo dữ liệu giả
-    dummy_input = np.random.randn(
-        batch_size, 3, image_size, image_size
-    ).astype(np.float32)
+    dummy_input = np.random.randn(batch_size, 3, image_size, image_size).astype(np.float32)
 
     latencies = []
 
@@ -298,8 +294,8 @@ def benchmark_engine(
 
         context = engine.create_execution_context()
 
-        import pycuda.driver as cuda
         import pycuda.autoinit  # noqa: F401
+        import pycuda.driver as cuda
 
         # Cấp phát bộ nhớ
         input_size = dummy_input.nbytes
@@ -359,13 +355,13 @@ def benchmark_engine(
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Chuyển đổi ONNX sang TensorRT Engine"
-    )
+    parser = argparse.ArgumentParser(description="Chuyển đổi ONNX sang TensorRT Engine")
     parser.add_argument("--onnx", type=str, required=True, help="Tệp ONNX")
     parser.add_argument("--output", type=str, default=None, help="Tệp engine")
     parser.add_argument(
-        "--precision", type=str, default="int8",
+        "--precision",
+        type=str,
+        default="int8",
         choices=["fp32", "fp16", "int8"],
     )
     parser.add_argument("--workspace", type=int, default=4, help="Workspace (GB)")

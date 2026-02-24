@@ -76,17 +76,18 @@ class KDDetectionTrainer(DetectionTrainer):
         self.teacher_model = self._load_teacher(teacher_weights)
 
         # --- Cấu hình KD ---
-        self.feature_layer_names = kd_config.get("feature_layers", [
-            "model.model.15",
-            "model.model.18",
-            "model.model.21",
-        ])
+        self.feature_layer_names = kd_config.get(
+            "feature_layers",
+            [
+                "model.model.15",
+                "model.model.18",
+                "model.model.21",
+            ],
+        )
         self.alpha_feature = kd_config.get("alpha_feature", 0.5)
         self.alpha_response = kd_config.get("alpha_response", 0.5)
         self.temperature = kd_config.get("temperature", 4.0)
-        self.teacher_conf_threshold = kd_config.get(
-            "teacher_confidence_threshold", 0.25
-        )
+        self.teacher_conf_threshold = kd_config.get("teacher_confidence_threshold", 0.25)
 
         # Các thành phần sẽ được khởi tạo trong setup_model()
         self.teacher_extractor: FeatureExtractor | None = None
@@ -95,9 +96,9 @@ class KDDetectionTrainer(DetectionTrainer):
         self.kd_loss_fn: CombinedDistillationLoss | None = None
 
         logger.info(
-            "KDDetectionTrainer khởi tạo thành công. "
-            "Teacher: %s | Feature layers: %s",
-            teacher_weights, self.feature_layer_names,
+            "KDDetectionTrainer khởi tạo thành công. Teacher: %s | Feature layers: %s",
+            teacher_weights,
+            self.feature_layer_names,
         )
 
     def _load_teacher(self, weights_path: str) -> nn.Module:
@@ -139,12 +140,8 @@ class KDDetectionTrainer(DetectionTrainer):
         super().setup_model()
 
         # --- Đăng ký Feature Extractors ---
-        self.teacher_extractor = FeatureExtractor(
-            self.teacher_model, self.feature_layer_names
-        )
-        self.student_extractor = FeatureExtractor(
-            self.model, self.feature_layer_names
-        )
+        self.teacher_extractor = FeatureExtractor(self.teacher_model, self.feature_layer_names)
+        self.student_extractor = FeatureExtractor(self.model, self.feature_layer_names)
 
         # --- Xác định số kênh và tạo Channel Aligners ---
         self.channel_aligners = self._create_channel_aligners()
@@ -175,7 +172,10 @@ class KDDetectionTrainer(DetectionTrainer):
 
         # Tạo tensor giả để chạy forward pass
         dummy_input = torch.randn(
-            1, 3, self.args.imgsz, self.args.imgsz,
+            1,
+            3,
+            self.args.imgsz,
+            self.args.imgsz,
             device=self.device,
         )
 
@@ -202,7 +202,9 @@ class KDDetectionTrainer(DetectionTrainer):
 
             logger.info(
                 "Tầng P%d: Student=%d kênh -> Teacher=%d kênh",
-                idx + 3, s_channels, t_channels,
+                idx + 3,
+                s_channels,
+                t_channels,
             )
 
         # Xóa bộ nhớ đệm sau khi phân tích
@@ -216,10 +218,12 @@ class KDDetectionTrainer(DetectionTrainer):
         if self.channel_aligners is not None and hasattr(self, "optimizer"):
             aligner_params = list(self.channel_aligners.parameters())
             if aligner_params:
-                self.optimizer.add_param_group({
-                    "params": aligner_params,
-                    "lr": self.args.lr0,
-                })
+                self.optimizer.add_param_group(
+                    {
+                        "params": aligner_params,
+                        "lr": self.args.lr0,
+                    }
+                )
                 logger.info(
                     "Đã thêm %d tham số ChannelAligner vào optimizer.",
                     sum(p.numel() for p in aligner_params),

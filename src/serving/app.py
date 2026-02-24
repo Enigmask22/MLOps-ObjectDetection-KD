@@ -13,8 +13,9 @@ Xây dựng API bất đồng bộ (async) với các tính năng:
 from __future__ import annotations
 
 import uuid
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from typing import Annotated
 
 import numpy as np
 import torch
@@ -22,13 +23,13 @@ from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from src.monitoring.middleware import setup_prometheus_endpoint
 from src.serving.inference import InferenceEngine
 from src.serving.schemas import (
     DetectionResponse,
     ErrorResponse,
     HealthResponse,
 )
-from src.monitoring.middleware import setup_prometheus_endpoint
 from src.utils.helpers import load_config
 from src.utils.logger import get_logger
 
@@ -137,13 +138,17 @@ async def health_check() -> HealthResponse:
     tags=["Suy luận"],
 )
 async def detect_objects(
-    file: UploadFile = File(..., description="Tệp hình ảnh (JPEG, PNG)"),
+    file: Annotated[UploadFile, File(description="Tệp hình ảnh (JPEG, PNG)")],
     confidence: float = Query(
-        default=0.25, ge=0.0, le=1.0,
+        default=0.25,
+        ge=0.0,
+        le=1.0,
         description="Ngưỡng tin cậy tối thiểu",
     ),
     iou: float = Query(
-        default=0.45, ge=0.0, le=1.0,
+        default=0.45,
+        ge=0.0,
+        le=1.0,
         description="Ngưỡng IoU cho NMS",
     ),
 ) -> DetectionResponse:
@@ -210,7 +215,9 @@ async def detect_objects(
 
         logger.info(
             "Yêu cầu %s: %d đối tượng trong %.2f ms",
-            request_id, response.num_detections, response.inference_time_ms,
+            request_id,
+            response.num_detections,
+            response.inference_time_ms,
         )
 
         return response
@@ -222,7 +229,7 @@ async def detect_objects(
         raise HTTPException(
             status_code=500,
             detail=f"Lỗi suy luận nội bộ: {str(e)}",
-        )
+        ) from e
 
 
 @app.exception_handler(HTTPException)

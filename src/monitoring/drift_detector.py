@@ -61,17 +61,15 @@ class DataDriftDetector:
         ref_path = Path(self.reference_dir)
         if not ref_path.exists():
             logger.warning(
-                "Thư mục tham chiếu không tồn tại: %s. "
-                "Drift detection sẽ bị vô hiệu.",
+                "Thư mục tham chiếu không tồn tại: %s. Drift detection sẽ bị vô hiệu.",
                 self.reference_dir,
             )
             return
 
         image_extensions = {".jpg", ".jpeg", ".png", ".bmp"}
-        image_paths = sorted([
-            str(p) for p in ref_path.rglob("*")
-            if p.suffix.lower() in image_extensions
-        ])
+        image_paths = sorted(
+            [str(p) for p in ref_path.rglob("*") if p.suffix.lower() in image_extensions]
+        )
 
         if not image_paths:
             logger.warning("Không tìm thấy ảnh tham chiếu trong: %s", self.reference_dir)
@@ -80,9 +78,7 @@ class DataDriftDetector:
         properties = self._extract_properties(image_paths)
         self._reference_properties = properties
 
-        logger.info(
-            "Đã tính thuộc tính tham chiếu từ %d ảnh.", len(image_paths)
-        )
+        logger.info("Đã tính thuộc tính tham chiếu từ %d ảnh.", len(image_paths))
 
     def _extract_properties(
         self,
@@ -192,7 +188,9 @@ class DataDriftDetector:
                 has_drift = True
                 logger.warning(
                     "DRIFT PHÁT HIỆN - %s: KS=%.4f > %.4f",
-                    prop_name, ks_stat, self.drift_threshold_ks,
+                    prop_name,
+                    ks_stat,
+                    self.drift_threshold_ks,
                 )
 
         # --- Kiểm tra Label Drift (Cramer's V) ---
@@ -204,9 +202,7 @@ class DataDriftDetector:
 
         result = {
             "status": "drift_detected" if has_drift else "no_drift",
-            "num_reference_images": len(
-                self._reference_properties.get("brightness", [])
-            ),
+            "num_reference_images": len(self._reference_properties.get("brightness", [])),
             "num_current_images": len(current_image_paths),
             "image_property_drift": property_results,
             "label_drift": label_drift_result,
@@ -220,7 +216,8 @@ class DataDriftDetector:
 
         logger.info(
             "Drift check: %s (%d thuộc tính kiểm tra)",
-            result["status"], len(property_results),
+            result["status"],
+            len(property_results),
         )
 
         return result
@@ -245,9 +242,9 @@ class DataDriftDetector:
         bins = list(range(0, max_count + 2))
 
         # So sánh phân phối (dùng chi-squared -> Cramer's V)
-        ref_hist = np.histogram(
-            np.random.poisson(5, 100), bins=bins
-        )[0]  # Fallback nếu không có reference labels
+        ref_hist = np.histogram(np.random.poisson(5, 100), bins=bins)[
+            0
+        ]  # Fallback nếu không có reference labels
         cur_hist = np.histogram(current_bbox_counts, bins=bins)[0]
 
         # Lọc bins có ít nhất 1 quan sát
@@ -280,7 +277,8 @@ class DataDriftDetector:
         if is_drifted:
             logger.warning(
                 "LABEL DRIFT PHÁT HIỆN: Cramer's V=%.4f > %.4f",
-                cramers_v, self.drift_threshold_cv,
+                cramers_v,
+                self.drift_threshold_cv,
             )
 
         return result
