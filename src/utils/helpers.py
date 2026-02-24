@@ -13,7 +13,7 @@ from typing import Any
 
 import numpy as np
 import torch
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 from src.utils.logger import get_logger
 
@@ -39,7 +39,7 @@ def load_config(config_path: str = "configs/config.yaml") -> dict[str, Any]:
         raise FileNotFoundError(f"Tệp cấu hình không tồn tại: {config_path}")
 
     with open(path, encoding="utf-8") as f:
-        config = yaml.safe_load(f)
+        config: dict[str, Any] = yaml.safe_load(f)
 
     logger.info("Đã tải cấu hình từ: %s", config_path)
     return config
@@ -55,7 +55,7 @@ def get_device() -> torch.device:
     if torch.cuda.is_available():
         device = torch.device("cuda")
         gpu_name = torch.cuda.get_device_name(0)
-        vram_total = torch.cuda.get_device_properties(0).total_mem / (1024**3)
+        vram_total = torch.cuda.get_device_properties(0).total_memory / (1024**3)
         logger.info("Sử dụng GPU: %s (VRAM: %.1f GB)", gpu_name, vram_total)
     else:
         device = torch.device("cpu")
@@ -120,14 +120,14 @@ def preprocess_image(
     canvas[pad_h : pad_h + new_h, pad_w : pad_w + new_w] = resized
 
     # Chuyển đổi BGR -> RGB, HWC -> CHW
-    canvas = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB)
-    canvas = canvas.transpose(2, 0, 1)  # (C, H, W)
+    result: np.ndarray = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB)
+    result = result.transpose(2, 0, 1)  # (C, H, W)
 
     if normalize:
-        canvas = canvas.astype(np.float32) / 255.0
+        result = result.astype(np.float32) / 255.0
 
     # Thêm chiều batch: (1, C, H, W)
-    return np.expand_dims(canvas, axis=0)
+    return np.expand_dims(result, axis=0)
 
 
 def seed_everything(seed: int = 42) -> None:
@@ -160,9 +160,9 @@ def format_model_size(path: str) -> str:
     Returns:
         str: Chuỗi biểu diễn kích thước (ví dụ: '45.2 MB').
     """
-    size_bytes = Path(path).stat().st_size
+    size: float = Path(path).stat().st_size
     for unit in ["B", "KB", "MB", "GB"]:
-        if size_bytes < 1024:
-            return f"{size_bytes:.1f} {unit}"
-        size_bytes /= 1024
-    return f"{size_bytes:.1f} TB"
+        if size < 1024:
+            return f"{size:.1f} {unit}"
+        size /= 1024
+    return f"{size:.1f} TB"

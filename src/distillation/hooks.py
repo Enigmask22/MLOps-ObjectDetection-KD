@@ -46,7 +46,7 @@ class FeatureExtractor:
         self.model = model
         self.layer_names = layer_names
         self._features: dict[str, torch.Tensor] = {}
-        self._hooks: list[torch.utils.hooks.RemovableHook] = []
+        self._hooks: list[torch.utils.hooks.RemovableHandle] = []
 
         self._register_hooks()
         logger.info(
@@ -70,8 +70,8 @@ class FeatureExtractor:
         for part in parts:
             if hasattr(module, part):
                 module = getattr(module, part)
-            elif part.isdigit() and hasattr(module, "__getitem__"):
-                module = module[int(part)]
+            elif part.isdigit():
+                module = getattr(module, part, module)
             else:
                 logger.error("Không tìm thấy tầng: %s (phần '%s')", name, part)
                 return None

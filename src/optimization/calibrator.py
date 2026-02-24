@@ -17,6 +17,7 @@ Luồng hoạt động:
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -75,7 +76,7 @@ class Int8EntropyCalibrator:
         self.current_batch = 0
 
         # Cấp phát bộ nhớ GPU (sẽ khởi tạo khi cần)
-        self._device_input: int | None = None
+        self._device_input: Any = None
         self._host_buffer: np.ndarray | None = None
 
         logger.info(
@@ -143,10 +144,10 @@ class Int8EntropyCalibrator:
         canvas[pad_h : pad_h + new_h, pad_w : pad_w + new_w] = resized
 
         # BGR -> RGB, HWC -> CHW, normalize
-        canvas = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB)
-        canvas = canvas.transpose(2, 0, 1).astype(np.float32) / 255.0
+        result: np.ndarray = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB)
+        result = result.transpose(2, 0, 1).astype(np.float32) / 255.0
 
-        return canvas
+        return result
 
     def get_batch_size(self) -> int:
         """Trả về kích thước batch calibration."""

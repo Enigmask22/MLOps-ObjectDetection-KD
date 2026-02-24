@@ -62,7 +62,8 @@ class ChannelAligner(nn.Module):
         Returns:
             torch.Tensor: Feature map đã căn chỉnh (B, C_teacher, H, W).
         """
-        return self.align(x)
+        result: torch.Tensor = self.align(x)
+        return result
 
 
 class FeatureDistillationLoss(nn.Module):
@@ -206,7 +207,8 @@ class ResponseDistillationLoss(nn.Module):
             valid_mask.numel(),
         )
 
-        return total_loss
+        result: torch.Tensor = total_loss
+        return result
 
     @staticmethod
     def _compute_giou_loss(

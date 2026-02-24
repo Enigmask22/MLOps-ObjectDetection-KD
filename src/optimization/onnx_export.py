@@ -51,14 +51,13 @@ def export_to_onnx(
         FileNotFoundError: Khi tệp mô hình không tồn tại.
         RuntimeError: Khi quá trình xuất gặp lỗi.
     """
-    model_path = Path(model_path)
-    if not model_path.exists():
-        raise FileNotFoundError(f"Tệp mô hình không tồn tại: {model_path}")
+    model_file = Path(model_path)
+    if not model_file.exists():
+        raise FileNotFoundError(f"Tệp mô hình không tồn tại: {model_file}")
 
-    if output_path is None:
-        output_path = str(model_path.with_suffix(".onnx"))
+    out_file = model_file.with_suffix(".onnx") if output_path is None else Path(output_path)
 
-    logger.info("Bắt đầu xuất ONNX: %s -> %s", model_path, output_path)
+    logger.info("Bắt đầu xuất ONNX: %s -> %s", model_file, out_file)
     logger.info(
         "Cấu hình: opset=%d, dynamic=%s, simplify=%s, half=%s",
         opset_version,

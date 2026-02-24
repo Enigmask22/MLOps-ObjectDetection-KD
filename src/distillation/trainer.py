@@ -114,7 +114,7 @@ class KDDetectionTrainer(DetectionTrainer):
         logger.info("Đang tải Teacher Model từ: %s", weights_path)
 
         teacher = YOLO(weights_path)
-        teacher_model = teacher.model
+        teacher_model: nn.Module = teacher.model
 
         # Đóng băng toàn bộ tham số - không cần gradient
         for param in teacher_model.parameters():
@@ -280,7 +280,8 @@ class KDDetectionTrainer(DetectionTrainer):
         self.student_extractor.clear()
         self.teacher_extractor.clear()
 
-        return loss_dict
+        result: dict[str, torch.Tensor] = loss_dict
+        return result
 
     @staticmethod
     def _extract_cls_logits(output: Any) -> torch.Tensor:

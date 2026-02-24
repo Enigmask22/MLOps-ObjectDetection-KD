@@ -48,7 +48,8 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
         """
         # Bỏ qua endpoint /metrics để tránh tự đo chính mình
         if request.url.path == "/metrics":
-            return await call_next(request)
+            metrics_response: Response = await call_next(request)  # type: ignore[assignment]
+            return metrics_response
 
         method = request.method
         endpoint = request.url.path
@@ -56,7 +57,7 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
         start_time = time.perf_counter()
 
         try:
-            response = await call_next(request)
+            response: Response = await call_next(request)
             status_code = str(response.status_code)
         except Exception as e:
             status_code = "500"

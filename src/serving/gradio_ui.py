@@ -43,7 +43,7 @@ def draw_detections(
     Returns:
         np.ndarray: Ảnh đã vẽ bounding boxes.
     """
-    annotated = image.copy()
+    annotated: np.ndarray = image.copy()
     h, w = annotated.shape[:2]
 
     # Bảng màu cho các lớp
@@ -210,7 +210,8 @@ def create_gradio_interface(
         )
 
     logger.info("Giao diện Gradio đã khởi tạo.")
-    return interface
+    result: gr.Blocks = interface
+    return result
 
 
 if __name__ == "__main__":
