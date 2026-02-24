@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Unit tests cho module Knowledge Distillation.
 
 Kiểm tra các chức năng:
@@ -10,7 +9,6 @@ Kiểm tra các chức năng:
 """
 
 import logging
-from unittest.mock import MagicMock
 
 import pytest
 import torch
@@ -79,10 +77,9 @@ class TestFeatureDistillationLoss:
         # Giả lập 3 tầng features giống hệt (cùng số kênh)
         features = [torch.randn(2, 256, h, h) for h in (80, 40, 20)]
         # Tạo aligners identity-like (cùng số kênh student=teacher)
-        aligners = nn.ModuleList([
-            ChannelAligner(student_channels=256, teacher_channels=256)
-            for _ in range(3)
-        ])
+        aligners = nn.ModuleList(
+            [ChannelAligner(student_channels=256, teacher_channels=256) for _ in range(3)]
+        )
         # Khi student == teacher và aligner là identity-like, loss ~= 0
         # Tuy nhiên vì aligner không phải identity thực sự, kiểm tra loss hữu hạn
         loss = loss_fn(features, features, aligners)
@@ -95,10 +92,9 @@ class TestFeatureDistillationLoss:
         loss_fn = FeatureDistillationLoss()
         student_feats = [torch.randn(2, 64, h, h) for h in (80, 40, 20)]
         teacher_feats = [torch.randn(2, 256, h, h) for h in (80, 40, 20)]
-        aligners = nn.ModuleList([
-            ChannelAligner(student_channels=64, teacher_channels=256)
-            for _ in range(3)
-        ])
+        aligners = nn.ModuleList(
+            [ChannelAligner(student_channels=64, teacher_channels=256) for _ in range(3)]
+        )
         loss = loss_fn(student_feats, teacher_feats, aligners)
         assert loss.item() > 0.0
 
@@ -109,10 +105,9 @@ class TestFeatureDistillationLoss:
         loss_fn = FeatureDistillationLoss()
         student_feats = [torch.randn(2, 64, h, h) for h in (80, 40, 20)]
         teacher_feats = [torch.randn(2, 256, h, h) for h in (80, 40, 20)]
-        aligners = nn.ModuleList([
-            ChannelAligner(student_channels=64, teacher_channels=256)
-            for _ in range(3)
-        ])
+        aligners = nn.ModuleList(
+            [ChannelAligner(student_channels=64, teacher_channels=256) for _ in range(3)]
+        )
         loss = loss_fn(student_feats, teacher_feats, aligners)
         assert loss.dim() == 0  # Scalar
 
@@ -149,12 +144,8 @@ class TestResponseDistillationLoss:
         student_logits = torch.randn(2, 80)
         teacher_logits = torch.randn(2, 80)
 
-        loss_low_t = ResponseDistillationLoss(temperature=2.0)(
-            student_logits, teacher_logits
-        )
-        loss_high_t = ResponseDistillationLoss(temperature=10.0)(
-            student_logits, teacher_logits
-        )
+        loss_low_t = ResponseDistillationLoss(temperature=2.0)(student_logits, teacher_logits)
+        loss_high_t = ResponseDistillationLoss(temperature=10.0)(student_logits, teacher_logits)
         # Cả hai đều phải hữu hạn
         assert torch.isfinite(loss_low_t)
         assert torch.isfinite(loss_high_t)
@@ -192,10 +183,9 @@ class TestCombinedDistillationLoss:
         task_loss = torch.tensor(1.0)
         student_feats = [torch.randn(2, 64, h, h) for h in (80, 40, 20)]
         teacher_feats = [torch.randn(2, 256, h, h) for h in (80, 40, 20)]
-        aligners = nn.ModuleList([
-            ChannelAligner(student_channels=64, teacher_channels=256)
-            for _ in range(3)
-        ])
+        aligners = nn.ModuleList(
+            [ChannelAligner(student_channels=64, teacher_channels=256) for _ in range(3)]
+        )
         student_logits = torch.randn(2, 80)
         teacher_logits = torch.randn(2, 80)
 
@@ -271,10 +261,10 @@ class TestFeatureExtractor:
         from src.distillation.hooks import FeatureExtractor
 
         model = nn.Sequential(
-            nn.Conv2d(3, 64, 3, padding=1),   # layer 0
-            nn.ReLU(),                          # layer 1
+            nn.Conv2d(3, 64, 3, padding=1),  # layer 0
+            nn.ReLU(),  # layer 1
             nn.Conv2d(64, 128, 3, padding=1),  # layer 2
-            nn.ReLU(),                          # layer 3
+            nn.ReLU(),  # layer 3
         )
 
         extractor = FeatureExtractor(model, layer_names=["0", "2"])

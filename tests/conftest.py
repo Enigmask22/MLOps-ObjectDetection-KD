@@ -1,10 +1,9 @@
-# -*- coding: utf-8 -*-
 """Cấu hình chung cho pytest - fixtures dùng lại giữa các test modules."""
 
 import io
 import logging
+from collections.abc import Generator
 from pathlib import Path
-from typing import AsyncGenerator, Generator
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -31,7 +30,7 @@ CONFIG_PATH = ROOT_DIR / "configs" / "config.yaml"
 @pytest.fixture(scope="session")
 def config() -> dict:
     """Đọc config YAML một lần cho toàn bộ session."""
-    with open(CONFIG_PATH, "r", encoding="utf-8") as fh:
+    with open(CONFIG_PATH, encoding="utf-8") as fh:
         cfg = yaml.safe_load(fh)
     logger.info("Đã load config từ %s", CONFIG_PATH)
     return cfg
@@ -115,12 +114,25 @@ def mock_inference_engine() -> MagicMock:
 @pytest.fixture()
 def test_client(mock_inference_engine: MagicMock) -> Generator[TestClient, None, None]:
     """Tạo FastAPI TestClient với mock engine."""
-    # Patch engine trước khi import app
-    with patch("src.serving.app._engine", mock_inference_engine):
-        from src.serving.app import app as fastapi_app
+    from contextlib import asynccontextmanager
 
-        with TestClient(fastapi_app) as client:
-            yield client
+    from fastapi import FastAPI
+
+    # Tạo lifespan giả để tránh tải model thật
+    @asynccontextmanager
+    async def _mock_lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
+        yield
+
+    from src.serving.app import app as fastapi_app
+
+    # Thay lifespan bằng mock và inject engine
+    original_router_lifespan = fastapi_app.router.lifespan_context
+    fastapi_app.router.lifespan_context = _mock_lifespan
+
+    with patch("src.serving.app._engine", mock_inference_engine), TestClient(fastapi_app) as client:
+        yield client
+
+    fastapi_app.router.lifespan_context = original_router_lifespan
 
 
 # ──────────────────────────────────────────────────────────────
@@ -146,8 +158,8 @@ def dummy_dataset_dir(tmp_path: Path) -> Path:
 
             # Label YOLO format: class_id cx cy w h
             with open(lbl_dir / f"img_{i:04d}.txt", "w") as f:
-                f.write(f"0 0.5 0.5 0.3 0.4\n")
-                f.write(f"2 0.7 0.3 0.2 0.2\n")
+                f.write("0 0.5 0.5 0.3 0.4\n")
+                f.write("2 0.7 0.3 0.2 0.2\n")
 
     # Tạo data.yaml
     data_yaml = {

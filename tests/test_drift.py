@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Unit tests cho module Data Drift Detection.
 
 Kiểm tra các chức năng:
@@ -11,11 +10,9 @@ Kiểm tra các chức năng:
 import json
 import logging
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import cv2
 import numpy as np
-import pytest
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +32,10 @@ def _create_image_dir(
     rng = np.random.default_rng(seed=seed)
     for i in range(num_images):
         arr = rng.integers(
-            brightness_range[0], brightness_range[1],
-            (64, 64, 3), dtype=np.uint8,
+            brightness_range[0],
+            brightness_range[1],
+            (64, 64, 3),
+            dtype=np.uint8,
         )
         path = img_dir / f"img_{i:04d}.jpg"
         cv2.imwrite(str(path), arr)
@@ -57,9 +56,7 @@ class TestFeatureExtraction:
         detector = DataDriftDetector(reference_dir=ref_dir)
 
         # Tạo danh sách ảnh từ thư mục
-        image_paths = sorted([
-            str(p) for p in Path(ref_dir).glob("*.jpg")
-        ])
+        image_paths = sorted([str(p) for p in Path(ref_dir).glob("*.jpg")])
         properties = detector._extract_properties(image_paths)
 
         assert "brightness" in properties
@@ -106,13 +103,17 @@ class TestImageDrift:
         from src.monitoring.drift_detector import DataDriftDetector
 
         ref_dir = _create_image_dir(
-            tmp_path / "ref", num_images=20,
-            brightness_range=(100, 200), seed=42,
+            tmp_path / "ref",
+            num_images=20,
+            brightness_range=(100, 200),
+            seed=42,
         )
         cur_dir = tmp_path / "cur"
         _create_image_dir(
-            cur_dir, num_images=20,
-            brightness_range=(100, 200), seed=99,
+            cur_dir,
+            num_images=20,
+            brightness_range=(100, 200),
+            seed=99,
         )
 
         detector = DataDriftDetector(
@@ -133,14 +134,18 @@ class TestImageDrift:
 
         # Tham chiếu: ảnh sáng (200-255)
         ref_dir = _create_image_dir(
-            tmp_path / "ref", num_images=30,
-            brightness_range=(200, 255), seed=42,
+            tmp_path / "ref",
+            num_images=30,
+            brightness_range=(200, 255),
+            seed=42,
         )
         # Hiện tại: ảnh tối (0-50)
         cur_dir = tmp_path / "cur"
         _create_image_dir(
-            cur_dir, num_images=30,
-            brightness_range=(0, 50), seed=99,
+            cur_dir,
+            num_images=30,
+            brightness_range=(0, 50),
+            seed=99,
         )
 
         detector = DataDriftDetector(
@@ -250,7 +255,7 @@ class TestDriftReport:
         )
 
         assert report_path.exists()
-        with open(report_path, "r", encoding="utf-8") as f:
+        with open(report_path, encoding="utf-8") as f:
             report = json.load(f)
         assert isinstance(report, dict)
 

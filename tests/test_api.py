@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Unit tests cho FastAPI endpoints.
 
 Kiểm tra các chức năng:
@@ -11,10 +10,8 @@ Kiểm tra các chức năng:
 
 import io
 import logging
-from unittest.mock import MagicMock, patch
 
 import numpy as np
-import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
@@ -39,9 +36,7 @@ class TestHealthEndpoint:
         assert "status" in data
         assert data["status"] == "healthy"
 
-    def test_health_check_contains_model_info(
-        self, test_client: TestClient
-    ) -> None:
+    def test_health_check_contains_model_info(self, test_client: TestClient) -> None:
         """Response /health phải chứa thông tin model."""
         response = test_client.get("/health")
         data = response.json()
@@ -125,9 +120,7 @@ class TestDetectEndpoint:
     def test_detect_png_image(self, test_client: TestClient) -> None:
         """POST /detect với ảnh PNG phải hoạt động."""
         # Tạo ảnh PNG
-        img = Image.fromarray(
-            np.random.randint(0, 256, (320, 320, 3), dtype=np.uint8)
-        )
+        img = Image.fromarray(np.random.randint(0, 256, (320, 320, 3), dtype=np.uint8))
         buffer = io.BytesIO()
         img.save(buffer, format="PNG")
         buffer.seek(0)

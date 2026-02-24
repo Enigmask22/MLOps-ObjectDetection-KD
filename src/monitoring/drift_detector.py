@@ -23,6 +23,21 @@ from src.utils.logger import get_logger
 logger = get_logger(__name__)
 
 
+class _NumpyEncoder(json.JSONEncoder):
+    """JSON encoder that handles numpy types."""
+
+    def default(self, o: Any) -> Any:
+        if isinstance(o, np.bool_):
+            return bool(o)
+        if isinstance(o, np.integer):
+            return int(o)
+        if isinstance(o, np.floating):
+            return float(o)
+        if isinstance(o, np.ndarray):
+            return o.tolist()
+        return super().default(o)
+
+
 class DataDriftDetector:
     """
     Bộ phát hiện Data Drift sử dụng thống kê phân phối.
@@ -298,7 +313,7 @@ class DataDriftDetector:
         Returns:
             str: Chuỗi JSON báo cáo.
         """
-        report_json = json.dumps(drift_results, indent=2, ensure_ascii=False)
+        report_json = json.dumps(drift_results, indent=2, ensure_ascii=False, cls=_NumpyEncoder)
 
         if output_path:
             Path(output_path).parent.mkdir(parents=True, exist_ok=True)

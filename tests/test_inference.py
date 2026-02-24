@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Unit tests cho module Inference Engine.
 
 Kiểm tra các chức năng:
@@ -10,10 +9,9 @@ Kiểm tra các chức năng:
 
 import logging
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import numpy as np
-import pytest
 
 from src.serving.schemas import (
     BoundingBox,
@@ -250,6 +248,7 @@ class TestUtilityFunctions:
     def test_get_device_returns_torch_device(self) -> None:
         """get_device phải trả về torch.device hợp lệ."""
         import torch
+
         from src.utils.helpers import get_device
 
         device = get_device()
