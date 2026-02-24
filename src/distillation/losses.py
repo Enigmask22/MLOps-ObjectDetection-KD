@@ -8,10 +8,11 @@ Bao gồm:
 - Hàm mất mát tổng hợp kết hợp cả ba thành phần
 """
 
+from __future__ import annotations
+
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from typing import Optional
+import torch.nn.functional as functional
 
 from src.utils.logger import get_logger
 
@@ -95,7 +96,7 @@ class FeatureDistillationLoss(nn.Module):
         total_loss = torch.tensor(0.0, device=student_features[0].device)
 
         for idx, (s_feat, t_feat, aligner) in enumerate(
-            zip(student_features, teacher_features, aligners)
+            zip(student_features, teacher_features, aligners, strict=True)
         ):
             # Căn chỉnh kênh Student -> Teacher
             aligned_student = aligner(s_feat)
@@ -143,8 +144,8 @@ class ResponseDistillationLoss(nn.Module):
         self,
         student_cls_logits: torch.Tensor,
         teacher_cls_logits: torch.Tensor,
-        student_box_preds: Optional[torch.Tensor] = None,
-        teacher_box_preds: Optional[torch.Tensor] = None,
+        student_box_preds: torch.Tensor | None = None,
+        teacher_box_preds: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """
         Tính Response Distillation Loss.
@@ -166,14 +167,17 @@ class ResponseDistillationLoss(nn.Module):
             valid_mask = teacher_max_conf > self.confidence_threshold  # (B, N)
 
         if valid_mask.sum() == 0:
-            logger.warning("Không có dự đoán Teacher nào vượt ngưỡng %.2f", self.confidence_threshold)
+            logger.warning(
+                "Không có dự đoán Teacher nào vượt ngưỡng %.2f",
+                self.confidence_threshold,
+            )
             return torch.tensor(0.0, device=student_cls_logits.device, requires_grad=True)
 
         # Áp dụng temperature scaling
-        student_soft = F.log_softmax(
+        student_soft = functional.log_softmax(
             student_cls_logits[valid_mask] / self.temperature, dim=-1
         )
-        teacher_soft = F.softmax(
+        teacher_soft = functional.softmax(
             teacher_cls_logits[valid_mask].detach() / self.temperature, dim=-1
         )
 
@@ -290,8 +294,8 @@ class CombinedDistillationLoss(nn.Module):
         aligners: nn.ModuleList,
         student_cls_logits: torch.Tensor,
         teacher_cls_logits: torch.Tensor,
-        student_box_preds: Optional[torch.Tensor] = None,
-        teacher_box_preds: Optional[torch.Tensor] = None,
+        student_box_preds: torch.Tensor | None = None,
+        teacher_box_preds: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
         """
         Tính hàm mất mát tổng hợp.

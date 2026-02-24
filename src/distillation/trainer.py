@@ -13,8 +13,10 @@ Kiến trúc luồng dữ liệu:
     5. Backpropagate chỉ qua Student Model
 """
 
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -58,7 +60,7 @@ class KDDetectionTrainer(DetectionTrainer):
     def __init__(
         self,
         cfg: Any = None,
-        overrides: Optional[dict[str, Any]] = None,
+        overrides: dict[str, Any] | None = None,
         teacher_weights: str = "yolo11x.pt",
         config_path: str = "configs/config.yaml",
         _callbacks: Any = None,
@@ -88,10 +90,10 @@ class KDDetectionTrainer(DetectionTrainer):
         )
 
         # Các thành phần sẽ được khởi tạo trong setup_model()
-        self.teacher_extractor: Optional[FeatureExtractor] = None
-        self.student_extractor: Optional[FeatureExtractor] = None
-        self.channel_aligners: Optional[nn.ModuleList] = None
-        self.kd_loss_fn: Optional[CombinedDistillationLoss] = None
+        self.teacher_extractor: FeatureExtractor | None = None
+        self.student_extractor: FeatureExtractor | None = None
+        self.channel_aligners: nn.ModuleList | None = None
+        self.kd_loss_fn: CombinedDistillationLoss | None = None
 
         logger.info(
             "KDDetectionTrainer khởi tạo thành công. "
@@ -306,7 +308,7 @@ class KDDetectionTrainer(DetectionTrainer):
         return torch.zeros(1, 0, 80)
 
     @staticmethod
-    def _extract_box_preds(output: Any) -> Optional[torch.Tensor]:
+    def _extract_box_preds(output: Any) -> torch.Tensor | None:
         """
         Trích xuất box predictions từ đầu ra mô hình YOLO.
 
@@ -314,7 +316,7 @@ class KDDetectionTrainer(DetectionTrainer):
             output: Đầu ra raw của mô hình.
 
         Returns:
-            Optional[torch.Tensor]: Box predictions (B, N, 4) hoặc None.
+            torch.Tensor | None: Box predictions (B, N, 4) hoặc None.
         """
         if isinstance(output, (list, tuple)):
             box_preds = []
