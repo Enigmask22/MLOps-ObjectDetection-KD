@@ -72,15 +72,15 @@
 
 ## Yêu Cầu Hệ Thống
 
-| Công cụ          | Phiên bản   | Bắt buộc | Ghi chú                            |
-| ---------------- | ----------- | --------- | ---------------------------------- |
-| Python           | >= 3.10     | ✅        | Khuyến nghị 3.11                   |
-| NVIDIA GPU       | CUDA 12.1+  | ⚠️        | Cần cho TensorRT INT8              |
-| Docker           | >= 24.0     | ✅        | Multi-stage build                  |
-| kubectl          | >= 1.28     | ⚠️        | Cần cho K8s deployment             |
-| Terraform        | >= 1.7      | ⚠️        | Cần cho AWS IaC                    |
-| AWS CLI          | >= 2.0      | ⚠️        | Cần cho EKS + S3                   |
-| Git              | >= 2.30     | ✅        |                                    |
+| Công cụ    | Phiên bản  | Bắt buộc | Ghi chú                |
+| ---------- | ---------- | -------- | ---------------------- |
+| Python     | >= 3.10    | ✅       | Khuyến nghị 3.11       |
+| NVIDIA GPU | CUDA 12.1+ | ⚠️       | Cần cho TensorRT INT8  |
+| Docker     | >= 24.0    | ✅       | Multi-stage build      |
+| kubectl    | >= 1.28    | ⚠️       | Cần cho K8s deployment |
+| Terraform  | >= 1.7     | ⚠️       | Cần cho AWS IaC        |
+| AWS CLI    | >= 2.0     | ⚠️       | Cần cho EKS + S3       |
+| Git        | >= 2.30    | ✅       |                        |
 
 > ⚠️ = Chỉ bắt buộc khi triển khai production. Có thể phát triển local mà không cần.
 
@@ -264,13 +264,13 @@ make k8s-delete
 
 **K8s Resources:**
 
-| Resource   | File                       | Mô tả                                        |
-| ---------- | -------------------------- | --------------------------------------------- |
-| Deployment | `deployment.yaml`          | 2 replicas, GPU, Rolling Update, health probes |
-| Service    | `service.yaml`             | LoadBalancer + ClusterIP                      |
-| PVC        | `pvc.yaml`                 | Persistent volume cho model storage           |
-| HPA        | `hpa.yaml`                 | Auto-scale 2→10 pods theo CPU/GPU             |
-| KEDA       | `keda-scaledobject.yaml`   | Event-driven scaling (SQS queue length)       |
+| Resource   | File                     | Mô tả                                          |
+| ---------- | ------------------------ | ---------------------------------------------- |
+| Deployment | `deployment.yaml`        | 2 replicas, GPU, Rolling Update, health probes |
+| Service    | `service.yaml`           | LoadBalancer + ClusterIP                       |
+| PVC        | `pvc.yaml`               | Persistent volume cho model storage            |
+| HPA        | `hpa.yaml`               | Auto-scale 2→10 pods theo CPU/GPU              |
+| KEDA       | `keda-scaledobject.yaml` | Event-driven scaling (SQS queue length)        |
 
 ---
 
@@ -308,14 +308,14 @@ make terraform-destroy
 
 **Biến cấu hình** (`infrastructure/terraform/variables.tf`):
 
-| Biến                | Mặc định                  | Mô tả                    |
-| ------------------- | ------------------------- | ------------------------- |
-| `aws_region`        | `ap-southeast-1`          | AWS Region                |
-| `eks_cluster_name`  | `mlops-inference-cluster` | Tên EKS Cluster           |
-| `gpu_instance_type` | `g4dn.xlarge`             | GPU instance cho EKS      |
-| `min_nodes`         | `2`                       | Số node tối thiểu         |
-| `max_nodes`         | `10`                      | Số node tối đa            |
-| `s3_bucket_name`    | `mlops-data-bucket`       | S3 bucket name            |
+| Biến                | Mặc định                  | Mô tả                |
+| ------------------- | ------------------------- | -------------------- |
+| `aws_region`        | `ap-southeast-1`          | AWS Region           |
+| `eks_cluster_name`  | `mlops-inference-cluster` | Tên EKS Cluster      |
+| `gpu_instance_type` | `g4dn.xlarge`             | GPU instance cho EKS |
+| `min_nodes`         | `2`                       | Số node tối thiểu    |
+| `max_nodes`         | `10`                      | Số node tối đa       |
+| `s3_bucket_name`    | `mlops-data-bucket`       | S3 bucket name       |
 
 ---
 
@@ -351,11 +351,11 @@ airflow scheduler               # Terminal 2
 **DAG `mlops_ct_pipeline`:**
 
 | Task                 | Mô tả                                              |
-| -------------------- | --------------------------------------------------- |
+| -------------------- | -------------------------------------------------- |
 | `check_data_drift`   | Gọi API `/drift/data`, kiểm tra KS > 0.15          |
-| `sync_data_dvc`      | Đồng bộ dữ liệu mới qua DVC                       |
-| `trigger_retraining` | KubernetesPodOperator — chạy training trên GPU pod  |
-| `register_model`     | Đăng ký model mới vào MLflow Registry               |
+| `sync_data_dvc`      | Đồng bộ dữ liệu mới qua DVC                        |
+| `trigger_retraining` | KubernetesPodOperator — chạy training trên GPU pod |
+| `register_model`     | Đăng ký model mới vào MLflow Registry              |
 
 - **Schedule:** Daily 02:00 UTC + Grafana webhook trigger khi drift alert
 - **Retries:** 2 lần, delay 5 phút | **Timeout:** 4 giờ
@@ -399,13 +399,13 @@ print(result)
 
 **Metrics expose tại `/metrics`:**
 
-| Metric                          | Loại      | Mô tả                           |
-| ------------------------------- | --------- | -------------------------------- |
+| Metric                          | Loại      | Mô tả                             |
+| ------------------------------- | --------- | --------------------------------- |
 | `http_requests_total`           | Counter   | Tổng request theo method/endpoint |
-| `http_request_duration_seconds` | Histogram | Thời gian xử lý request         |
-| `inference_latency_seconds`     | Histogram | Thời gian inference model        |
-| `service_ram_mb`                | Gauge     | RAM usage (MB)                   |
-| `service_gpu_utilization`       | Gauge     | GPU memory utilization (%)       |
+| `http_request_duration_seconds` | Histogram | Thời gian xử lý request           |
+| `inference_latency_seconds`     | Histogram | Thời gian inference model         |
+| `service_ram_mb`                | Gauge     | RAM usage (MB)                    |
+| `service_gpu_utilization`       | Gauge     | GPU memory utilization (%)        |
 
 ---
 
@@ -605,11 +605,11 @@ Rolling Update (zero-downtime)
 
 Để CI/CD hoạt động đầy đủ, cấu hình tại **Settings → Secrets and variables → Actions**:
 
-| Secret                  | Bắt buộc | Mô tả                                        |
-| ----------------------- | -------- | --------------------------------------------- |
-| `GITHUB_TOKEN`          | Tự động  | Có sẵn, dùng để push Docker image lên GHCR    |
-| `AWS_ACCESS_KEY_ID`     | ⚠️ CD    | AWS IAM Access Key cho EKS + Terraform        |
-| `AWS_SECRET_ACCESS_KEY` | ⚠️ CD    | AWS IAM Secret Key                            |
+| Secret                  | Bắt buộc | Mô tả                                      |
+| ----------------------- | -------- | ------------------------------------------ |
+| `GITHUB_TOKEN`          | Tự động  | Có sẵn, dùng để push Docker image lên GHCR |
+| `AWS_ACCESS_KEY_ID`     | ⚠️ CD    | AWS IAM Access Key cho EKS + Terraform     |
+| `AWS_SECRET_ACCESS_KEY` | ⚠️ CD    | AWS IAM Secret Key                         |
 
 > **Lưu ý:** CI pipeline (Lint + Test + Build) hoạt động **không cần** AWS secrets.
 > CD pipeline sẽ tự động **bỏ qua** nếu chưa cấu hình AWS credentials.
