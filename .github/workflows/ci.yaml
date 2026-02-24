@@ -15,7 +15,6 @@ on:
 env:
   PYTHON_VERSION: "3.11"
   DOCKER_REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}/mlops-detection
 
 jobs:
   # --- Giai đoạn 1: Kiểm tra chất lượng mã nguồn ---
@@ -112,6 +111,10 @@ jobs:
       - name: Thiết lập Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Chuẩn bị tên image (lowercase)
+        id: image
+        run: echo "name=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')/mlops-detection" >> "$GITHUB_OUTPUT"
+
       - name: Build và Push Docker Image
         uses: docker/build-push-action@v5
         with:
@@ -119,12 +122,12 @@ jobs:
           file: ./infrastructure/docker/Dockerfile
           push: true
           tags: |
-            ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.DOCKER_REGISTRY }}/${{ steps.image.outputs.name }}:latest
+            ${{ env.DOCKER_REGISTRY }}/${{ steps.image.outputs.name }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Tóm tắt kết quả
         run: |
           echo "### Docker Image đã Push thành công! :rocket:" >> $GITHUB_STEP_SUMMARY
-          echo "- Image: \`${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Image: \`${{ env.DOCKER_REGISTRY }}/${{ steps.image.outputs.name }}:${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
