@@ -1,0 +1,76 @@
+# =============================================================================
+# KEDA ScaledObject - Tự động co giãn dựa trên hàng đợi SQS
+# =============================================================================
+# Event-driven Autoscaling: Scale từ 0 đến N pods
+# dựa trên số lượng tin nhắn trong Amazon SQS Queue
+
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: mlops-detection-keda
+  namespace: mlops-production
+  labels:
+    app: mlops-detection
+    component: autoscaling
+spec:
+  scaleTargetRef:
+    name: mlops-detection
+  pollingInterval: 15 # Kiểm tra SQS mỗi 15 giây
+  cooldownPeriod: 120 # Chờ 2 phút trước khi thu nhỏ
+  idleReplicaCount: 0 # Cho phép scale về 0 khi không có request
+  minReplicaCount: 1 # Tối thiểu 1 pod khi có request
+  maxReplicaCount: 20 # Tối đa 20 pods
+
+  triggers:
+    # Trigger dựa trên SQS Queue length
+    - type: aws-sqs-queue
+      metadata:
+        queueURL: "https://sqs.ap-southeast-1.amazonaws.com/123456789/mlops-inference-queue"
+        queueLength: "5" # Mỗi 5 messages → thêm 1 pod
+        awsRegion: "ap-southeast-1"
+        identityOwner: "operator"
+
+    # Trigger bổ sung dựa trên Prometheus metrics
+    - type: prometheus
+      metadata:
+        serverAddress: "http://prometheus-service:9090"
+        metricName: http_requests_total
+        query: |
+          sum(rate(http_requests_total{endpoint="/detect"}[1m]))
+        threshold: "100" # Scale khi > 100 req/phút
+        activationThreshold: "10"
+
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleUp:
+          stabilizationWindowSeconds: 30
+          policies:
+            - type: Pods
+              value: 4
+              periodSeconds: 30
+        scaleDown:
+          stabilizationWindowSeconds: 300
+          policies:
+            - type: Percent
+              value: 25
+              periodSeconds: 60
+
+---
+# =============================================================================
+# KEDA TriggerAuthentication - Xác thực AWS cho SQS
+# =============================================================================
+
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: aws-credentials
+  namespace: mlops-production
+spec:
+  secretTargetRef:
+    - parameter: awsAccessKeyID
+      name: aws-secrets
+      key: AWS_ACCESS_KEY_ID
+    - parameter: awsSecretAccessKey
+      name: aws-secrets
+      key: AWS_SECRET_ACCESS_KEY

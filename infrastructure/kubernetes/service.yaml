@@ -1,0 +1,48 @@
+# =============================================================================
+# Kubernetes Service - Load Balancer cho Detection API
+# =============================================================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlops-detection-service
+  namespace: mlops-production
+  labels:
+    app: mlops-detection
+    component: inference
+  annotations:
+    # AWS ALB annotations (nếu dùng AWS)
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+spec:
+  type: LoadBalancer
+  selector:
+    app: mlops-detection
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 8000
+
+---
+# =============================================================================
+# Kubernetes Service - ClusterIP cho Prometheus scraping nội bộ
+# =============================================================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlops-detection-metrics
+  namespace: mlops-production
+  labels:
+    app: mlops-detection
+    component: monitoring
+spec:
+  type: ClusterIP
+  selector:
+    app: mlops-detection
+  ports:
+    - name: metrics
+      protocol: TCP
+      port: 9090
+      targetPort: 8000

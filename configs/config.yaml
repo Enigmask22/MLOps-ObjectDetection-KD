@@ -1,0 +1,133 @@
+# =============================================================================
+# Cấu hình chính cho dự án MLOps - Object Detection với Knowledge Distillation
+# =============================================================================
+
+project:
+  name: "mlops-object-detection-kd"
+  version: "1.0.0"
+  description: "Hệ thống nhận diện đối tượng thời gian thực với Knowledge Distillation và TensorRT"
+
+# --- Cấu hình dữ liệu ---
+data:
+  dataset_name: "coco128" # Có thể thay đổi: coco, voc, custom
+  data_yaml: "coco128.yaml"
+  train_split: 0.8
+  val_split: 0.1
+  test_split: 0.1
+  image_size: 640
+  num_workers: 4
+  cache: true
+
+# --- Cấu hình Teacher Model ---
+teacher:
+  model_name: "yolo11x"
+  weights: "yolo11x.pt"
+  image_size: 640
+  frozen: true # Đóng băng trọng số khi chưng cất
+
+# --- Cấu hình Student Model ---
+student:
+  model_name: "yolo11n"
+  weights: "yolo11n.pt"
+  image_size: 640
+
+# --- Cấu hình Knowledge Distillation ---
+distillation:
+  enabled: true
+  # Hệ số cân bằng hàm mất mát
+  alpha_feature: 0.5 # Trọng số cho Feature-based Loss
+  alpha_response: 0.5 # Trọng số cho Response-based Loss
+  temperature: 4.0 # Nhiệt độ cho KL Divergence
+  # Các tầng đặc trưng cần trích xuất (P3, P4, P5)
+  feature_layers:
+    - "model.model.15" # P3 - 80x80
+    - "model.model.18" # P4 - 40x40
+    - "model.model.21" # P5 - 20x20
+  teacher_confidence_threshold: 0.25 # Ngưỡng tin cậy tối thiểu của Teacher
+
+# --- Cấu hình huấn luyện ---
+training:
+  epochs: 100
+  batch_size: 16
+  optimizer: "AdamW"
+  learning_rate: 0.001
+  weight_decay: 0.0005
+  warmup_epochs: 3
+  warmup_momentum: 0.8
+  momentum: 0.937
+  scheduler: "cosine"
+  patience: 15 # Early stopping
+  save_period: 10 # Lưu checkpoint mỗi N epochs
+  amp: true # Automatic Mixed Precision
+  seed: 42
+
+# --- Cấu hình TensorRT ---
+tensorrt:
+  onnx_opset: 17
+  precision: "int8" # fp32, fp16, int8
+  workspace_size_gb: 4
+  dynamic_batch:
+    enabled: true
+    min_batch: 1
+    opt_batch: 8
+    max_batch: 32
+  calibration:
+    algorithm: "entropy" # entropy, minmax
+    num_calibration_images: 500
+    cache_file: "models/calibration.cache"
+
+# --- Cấu hình FastAPI Serving ---
+serving:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 4
+  model_path: "models/best_student.engine"
+  confidence_threshold: 0.25
+  iou_threshold: 0.45
+  max_detections: 300
+  cors_origins:
+    - "*"
+
+# --- Cấu hình Monitoring ---
+monitoring:
+  prometheus:
+    enabled: true
+    port: 9090
+    scrape_interval: "15s"
+  deepchecks:
+    enabled: true
+    drift_threshold_ks: 0.15
+    drift_threshold_cramers_v: 0.15
+    reference_data_path: "data/reference"
+    check_interval_minutes: 30
+  grafana:
+    enabled: true
+    port: 3000
+
+# --- Cấu hình MLflow ---
+mlflow:
+  tracking_uri: "http://localhost:5000"
+  experiment_name: "yolo-kd-optimization"
+  registry_name: "yolo-student-model"
+  artifact_location: "s3://mlops-artifacts/models"
+
+# --- Cấu hình hạ tầng ---
+infrastructure:
+  cloud_provider: "aws"
+  region: "ap-southeast-1"
+  eks:
+    cluster_name: "mlops-inference-cluster"
+    node_instance_type: "g4dn.xlarge"
+    min_nodes: 2
+    max_nodes: 10
+  s3:
+    bucket_name: "mlops-data-bucket"
+    dvc_remote: "s3://mlops-data-bucket/dvc-store"
+
+# --- Cấu hình Logging ---
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/app.log"
+  max_bytes: 10485760 # 10 MB
+  backup_count: 5

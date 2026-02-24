@@ -1,0 +1,96 @@
+# ══════════════════════════════════════════════════════════════
+# .gitignore - MLOps Object Detection Project
+# ══════════════════════════════════════════════════════════════
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+reports/coverage/
+
+# Type checking
+.mypy_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+*.tmp
+
+# Models (tracked by DVC)
+models/**/*.pt
+models/**/*.onnx
+models/**/*.engine
+!models/.gitkeep
+
+# Data (tracked by DVC)
+data/raw/
+data/processed/
+data/incoming/
+!data/.gitkeep
+
+# DVC cache
+.dvc/cache/
+.dvc/tmp/
+
+# Logs
+logs/
+*.log
+
+# MLflow
+mlruns/
+mlartifacts/
+
+# TensorRT
+*.trt
+calibration_cache/
+
+# LaTeX artifacts
+docs/*.aux
+docs/*.log
+docs/*.out
+docs/*.toc
+docs/*.synctex.gz
+docs/*.fdb_latexmk
+docs/*.fls
+
+# Terraform
+infrastructure/terraform/.terraform/
+infrastructure/terraform/*.tfstate
+infrastructure/terraform/*.tfstate.backup
+infrastructure/terraform/*.tfvars
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# Documents
+*.pdf
+docs

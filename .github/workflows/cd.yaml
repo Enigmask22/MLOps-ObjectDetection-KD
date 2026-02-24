@@ -1,0 +1,122 @@
+# =============================================================================
+# GitHub Actions - CD Pipeline
+# =============================================================================
+# Kích hoạt: Khi CI thành công trên nhánh main
+# Giai đoạn: Deploy lên EKS với Rolling Update
+
+name: CD Pipeline - Deploy to Kubernetes
+
+on:
+  workflow_run:
+    workflows: ["CI Pipeline - Lint, Test & Build"]
+    types: [completed]
+    branches: [main]
+
+env:
+  AWS_REGION: ap-southeast-1
+  EKS_CLUSTER: mlops-inference-cluster
+  K8S_NAMESPACE: mlops-production
+  DOCKER_REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/mlops-detection
+
+jobs:
+  deploy:
+    name: Triển khai lên Kubernetes (EKS)
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Checkout mã nguồn
+        uses: actions/checkout@v4
+
+      - name: Cấu hình AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Cập nhật kubeconfig cho EKS
+        run: |
+          aws eks update-kubeconfig \
+            --name ${{ env.EKS_CLUSTER }} \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Cài đặt kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Triển khai Kubernetes manifests
+        run: |
+          # Thay thế tag image trong deployment
+          export IMAGE_TAG=${{ github.event.workflow_run.head_sha }}
+          envsubst < infrastructure/kubernetes/deployment.yaml | kubectl apply -f -
+          kubectl apply -f infrastructure/kubernetes/pvc.yaml
+          kubectl apply -f infrastructure/kubernetes/service.yaml
+          kubectl apply -f infrastructure/kubernetes/hpa.yaml
+
+      - name: Chờ Rolling Update hoàn tất
+        run: |
+          kubectl rollout status deployment/mlops-detection \
+            -n ${{ env.K8S_NAMESPACE }} \
+            --timeout=300s
+
+      - name: Xác minh triển khai
+        run: |
+          echo "### Trạng thái triển khai" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          kubectl get pods -n ${{ env.K8S_NAMESPACE }} -l app=mlops-detection >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Kiểm tra Health Check
+        run: |
+          # Lấy Service URL
+          SERVICE_URL=$(kubectl get svc mlops-detection-service \
+            -n ${{ env.K8S_NAMESPACE }} \
+            -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+
+          # Chờ service sẵn sàng
+          for i in $(seq 1 30); do
+            if curl -sf "http://${SERVICE_URL}/health" > /dev/null 2>&1; then
+              echo "Health check thành công!"
+              exit 0
+            fi
+            echo "Đang chờ service... ($i/30)"
+            sleep 10
+          done
+          echo "Health check thất bại sau 5 phút!"
+          exit 1
+
+  # --- Terraform Plan (nếu có thay đổi hạ tầng) ---
+  terraform:
+    name: Terraform Plan & Apply
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    needs: deploy
+
+    steps:
+      - name: Checkout mã nguồn
+        uses: actions/checkout@v4
+
+      - name: Cài đặt Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+
+      - name: Cấu hình AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init
+        working-directory: infrastructure/terraform
+        run: terraform init
+
+      - name: Terraform Plan
+        working-directory: infrastructure/terraform
+        run: terraform plan -out=tfplan
+
+      - name: Terraform Apply (auto-approve trên main)
+        working-directory: infrastructure/terraform
+        run: terraform apply -auto-approve tfplan

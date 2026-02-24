@@ -1,0 +1,130 @@
+# =============================================================================
+# GitHub Actions - CI Pipeline
+# =============================================================================
+# Kích hoạt: Push/PR vào nhánh main hoặc develop
+# Giai đoạn: Lint -> Test -> Build Docker -> Push to Registry
+
+name: CI Pipeline - Lint, Test & Build
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: "3.11"
+  DOCKER_REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/mlops-detection
+
+jobs:
+  # --- Giai đoạn 1: Kiểm tra chất lượng mã nguồn ---
+  lint:
+    name: Kiểm tra chất lượng mã (Linting)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout mã nguồn
+        uses: actions/checkout@v4
+
+      - name: Cài đặt Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cài đặt công cụ kiểm tra
+        run: |
+          pip install ruff mypy
+
+      - name: Kiểm tra Ruff (Linting + Formatting)
+        run: |
+          ruff check src/ --output-format=github
+          ruff format --check src/
+
+      - name: Kiểm tra Type Hints (MyPy)
+        run: |
+          mypy src/ --ignore-missing-imports --no-strict-optional
+        continue-on-error: true
+
+  # --- Giai đoạn 2: Kiểm thử tự động ---
+  test:
+    name: Kiểm thử tự động (Pytest)
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout mã nguồn
+        uses: actions/checkout@v4
+
+      - name: Cài đặt Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Cài đặt thư viện phụ thuộc
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-cov
+
+      - name: Chạy kiểm thử đơn vị
+        run: |
+          pytest tests/ -v \
+            --cov=src \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            -x --tb=short
+
+      - name: Tải báo cáo coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage.xml
+
+  # --- Giai đoạn 3: Đóng gói Docker Image ---
+  build:
+    name: Đóng gói Docker Image
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout mã nguồn
+        uses: actions/checkout@v4
+
+      - name: Đăng nhập Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Thiết lập Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build và Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./infrastructure/docker/Dockerfile
+          push: true
+          tags: |
+            ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Tóm tắt kết quả
+        run: |
+          echo "### Docker Image đã Push thành công! :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "- Image: \`${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY

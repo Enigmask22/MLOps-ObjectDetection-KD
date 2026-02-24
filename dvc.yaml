@@ -1,0 +1,193 @@
+# DVC Pipeline - Object Detection with Knowledge Distillation
+# Pipeline gồm các stage: prepare → train_teacher → train_student_kd → export → evaluate
+# Mỗi stage định nghĩa deps (dependencies) và outs (outputs) để DVC tự quản lý cache/reproduce
+
+stages:
+  # ──────────────────────────────────────────────────────────
+  # Stage 1: Chuẩn bị dữ liệu
+  # ──────────────────────────────────────────────────────────
+  prepare_data:
+    cmd: >
+      python -m scripts.prepare_data
+      --config configs/config.yaml
+      --output data/processed
+    deps:
+      - configs/config.yaml
+      - data/raw
+    outs:
+      - data/processed/train/images
+      - data/processed/train/labels
+      - data/processed/val/images
+      - data/processed/val/labels
+      - data/processed/data.yaml
+    params:
+      - configs/config.yaml:
+          - data.image_size
+          - data.train_split
+          - data.val_split
+    plots:
+      - data/processed/class_distribution.json:
+          x: class_name
+          y: count
+
+  # ──────────────────────────────────────────────────────────
+  # Stage 2: Huấn luyện Teacher (YOLO11x)
+  # ──────────────────────────────────────────────────────────
+  train_teacher:
+    cmd: >
+      python -m scripts.train_teacher
+      --config configs/config.yaml
+    deps:
+      - configs/config.yaml
+      - scripts/train_teacher.py
+      - data/processed/data.yaml
+      - data/processed/train/images
+      - data/processed/val/images
+    outs:
+      - models/teacher/best.pt:
+          cache: true
+      - models/teacher/last.pt:
+          cache: true
+    params:
+      - configs/config.yaml:
+          - teacher.model_name
+          - training.epochs
+          - training.batch_size
+          - training.learning_rate
+    metrics:
+      - models/teacher/metrics.json:
+          cache: false
+    plots:
+      - models/teacher/results.csv:
+          x: epoch
+          y: metrics/mAP50
+
+  # ──────────────────────────────────────────────────────────
+  # Stage 3: Huấn luyện Student với Knowledge Distillation
+  # ──────────────────────────────────────────────────────────
+  train_student_kd:
+    cmd: >
+      python -m scripts.train_student_kd
+      --config configs/config.yaml
+    deps:
+      - configs/config.yaml
+      - scripts/train_student_kd.py
+      - src/distillation/losses.py
+      - src/distillation/hooks.py
+      - src/distillation/trainer.py
+      - models/teacher/best.pt
+      - data/processed/data.yaml
+      - data/processed/train/images
+      - data/processed/val/images
+    outs:
+      - models/student/best.pt:
+          cache: true
+      - models/student/last.pt:
+          cache: true
+    params:
+      - configs/config.yaml:
+          - student.model_name
+          - distillation.alpha_feature
+          - distillation.alpha_response
+          - distillation.temperature
+          - distillation.feature_layers
+          - training.epochs
+          - training.learning_rate
+    metrics:
+      - models/student/metrics.json:
+          cache: false
+    plots:
+      - models/student/results.csv:
+          x: epoch
+          y: metrics/mAP50
+
+  # ──────────────────────────────────────────────────────────
+  # Stage 4: Export ONNX + TensorRT
+  # ──────────────────────────────────────────────────────────
+  export_models:
+    cmd: >
+      python -m scripts.export_model
+      --config configs/config.yaml
+      --model models/student/best.pt
+      --output models/exported
+    deps:
+      - configs/config.yaml
+      - scripts/export_model.py
+      - src/optimization/onnx_export.py
+      - src/optimization/tensorrt_convert.py
+      - src/optimization/calibrator.py
+      - models/student/best.pt
+    outs:
+      - models/exported/student.onnx:
+          cache: true
+      - models/exported/student_int8.engine:
+          cache: true
+    params:
+      - configs/config.yaml:
+          - tensorrt.precision
+          - tensorrt.max_batch_size
+          - tensorrt.workspace_size_gb
+
+  # ──────────────────────────────────────────────────────────
+  # Stage 5: Benchmark & Evaluate tất cả model formats
+  # ──────────────────────────────────────────────────────────
+  evaluate:
+    cmd: >
+      python -m scripts.benchmark
+      --config configs/config.yaml
+      --models-dir models
+      --output reports/benchmark
+    deps:
+      - configs/config.yaml
+      - scripts/benchmark.py
+      - models/teacher/best.pt
+      - models/student/best.pt
+      - models/exported/student.onnx
+      - models/exported/student_int8.engine
+      - data/processed/val/images
+    metrics:
+      - reports/benchmark/comparison.json:
+          cache: false
+    plots:
+      - reports/benchmark/latency_comparison.json:
+          x: model
+          y: latency_ms
+      - reports/benchmark/fps_comparison.json:
+          x: model
+          y: fps
+      - reports/benchmark/map_comparison.json:
+          x: model
+          y: mAP50
+
+  # ──────────────────────────────────────────────────────────
+  # Stage 6: Kiểm tra Data Drift
+  # ──────────────────────────────────────────────────────────
+  check_drift:
+    cmd: >
+      python -c "
+      from src.monitoring.drift_detector import DataDriftDetector
+      from pathlib import Path
+      import json, sys
+
+      detector = DataDriftDetector(reference_dir='data/processed/train/images')
+
+      cur_dir = Path('data/incoming/images')
+      extensions = {'.jpg', '.jpeg', '.png', '.bmp'}
+      cur_paths = sorted([str(p) for p in cur_dir.rglob('*') if p.suffix.lower() in extensions])
+
+      drift_results = detector.check_drift(current_image_paths=cur_paths)
+      detector.generate_report(drift_results, output_path='reports/drift/drift_report.json')
+
+      if drift_results.get('overall_drift', False):
+          print('DATA DRIFT DETECTED - cần retrain!')
+          sys.exit(1)
+      print('Không phát hiện drift')
+      "
+    deps:
+      - src/monitoring/drift_detector.py
+      - data/processed/train/images
+      - data/incoming/images
+    metrics:
+      - reports/drift/drift_report.json:
+          cache: false
+    always_changed: true

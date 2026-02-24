@@ -1,0 +1,126 @@
+# =============================================================================
+# Kubernetes Deployment - MLOps Object Detection Service
+# =============================================================================
+# Chiến lược: Rolling Update (zero-downtime)
+# Resources: GPU (nvidia.com/gpu), VRAM limit
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlops-detection
+  namespace: mlops-production
+  labels:
+    app: mlops-detection
+    version: "1.0.0"
+    component: inference
+spec:
+  replicas: 2
+  # Chiến lược cập nhật quay vòng - đảm bảo không gián đoạn
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1 # Tối đa 1 pod thêm trong lúc cập nhật
+      maxUnavailable: 0 # Không cho phép pod nào ngừng phục vụ
+  selector:
+    matchLabels:
+      app: mlops-detection
+  template:
+    metadata:
+      labels:
+        app: mlops-detection
+        version: "1.0.0"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      # Ưu tiên chạy trên node có GPU
+      nodeSelector:
+        accelerator: nvidia-gpu
+
+      # Dung sai cho GPU nodes
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+
+      containers:
+        - name: detection-api
+          image: ghcr.io/mlops/detection:${IMAGE_TAG:-latest}
+          imagePullPolicy: Always
+
+          ports:
+            - containerPort: 8000
+              name: http
+              protocol: TCP
+
+          # Biến môi trường
+          env:
+            - name: MODEL_PATH
+              value: "/models/best_student.engine"
+            - name: CONFIDENCE_THRESHOLD
+              value: "0.25"
+            - name: IOU_THRESHOLD
+              value: "0.45"
+            - name: MLFLOW_TRACKING_URI
+              value: "http://mlflow-service:5000"
+            - name: LOG_LEVEL
+              value: "INFO"
+
+          # Tài nguyên - bao gồm GPU
+          resources:
+            requests:
+              cpu: "1"
+              memory: "2Gi"
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "4"
+              memory: "8Gi"
+              nvidia.com/gpu: "1"
+
+          # Kiểm tra sức khỏe - Liveness
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          # Kiểm tra sẵn sàng - Readiness
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+          # Kiểm tra khởi động - Startup
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 30 # Cho phép 150s để tải mô hình
+
+          # Volume mount mô hình
+          volumeMounts:
+            - name: model-storage
+              mountPath: /models
+              readOnly: true
+            - name: log-storage
+              mountPath: /app/logs
+
+      volumes:
+        - name: model-storage
+          persistentVolumeClaim:
+            claimName: model-pvc
+        - name: log-storage
+          emptyDir: {}
+
+      # Thời gian chờ tắt graceful
+      terminationGracePeriodSeconds: 30

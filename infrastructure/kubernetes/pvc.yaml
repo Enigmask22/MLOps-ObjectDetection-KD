@@ -1,0 +1,22 @@
+# =============================================================================
+# PersistentVolumeClaim - Model Storage
+# =============================================================================
+# Lưu trữ mô hình (ONNX, TensorRT engine) cho inference pods.
+# Được mount vào /models trong deployment.
+# Sử dụng dynamic provisioning thông qua StorageClass mặc định (gp3 trên EKS).
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: model-pvc
+  namespace: mlops-production
+  labels:
+    app: mlops-detection
+    component: model-storage
+spec:
+  accessModes:
+    - ReadOnlyMany # Nhiều pod có thể đọc đồng thời
+  storageClassName: gp3 # EKS default StorageClass
+  resources:
+    requests:
+      storage: 5Gi # Đủ cho ONNX + TensorRT models

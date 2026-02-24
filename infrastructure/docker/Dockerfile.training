@@ -1,0 +1,50 @@
+# =============================================================================
+# Dockerfile.training - Huấn luyện Knowledge Distillation
+# =============================================================================
+# Image chuyên dụng cho training jobs trên Kubernetes
+
+FROM nvidia/cuda:12.1.0-devel-ubuntu22.04
+
+LABEL maintainer="AI Engineer Portfolio"
+LABEL description="Training container cho Knowledge Distillation YOLO"
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    DEBIAN_FRONTEND=noninteractive
+
+# Cài đặt system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.11 \
+    python3.11-dev \
+    python3-pip \
+    git \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    && ln -sf /usr/bin/python3.11 /usr/bin/python \
+    && ln -sf /usr/bin/pip3 /usr/bin/pip \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Cài đặt Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Cài đặt thêm training dependencies
+RUN pip install --no-cache-dir \
+    tensorboard>=2.16.0 \
+    dvc[s3]>=3.50.0
+
+# Sao chép mã nguồn
+COPY src/ ./src/
+COPY configs/ ./configs/
+COPY scripts/ ./scripts/
+COPY dvc.yaml ./
+COPY pyproject.toml ./
+
+# Tạo thư mục
+RUN mkdir -p /app/models /app/logs /app/data /app/runs
+
+# Khởi chạy training
+ENTRYPOINT ["python"]
+CMD ["scripts/train_student_kd.py", "--config", "configs/config.yaml"]

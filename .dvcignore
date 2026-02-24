@@ -1,0 +1,47 @@
+# Các file/thư mục mà DVC sẽ bỏ qua (không track)
+# Tương tự .gitignore nhưng dành cho DVC
+
+# IDE và editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+.mypy_cache/
+.pytest_cache/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# TensorRT engine files ngoài pipeline
+*.engine.bak
+
+# MLflow artifacts (managed separately)
+mlruns/
