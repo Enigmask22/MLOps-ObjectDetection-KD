@@ -29,7 +29,7 @@ variable "eks_cluster_name" {
 variable "gpu_instance_type" {
   description = "Loại instance GPU cho inference nodes"
   type        = string
-  default     = "g4dn.xlarge"
+  default     = "t3.medium"
 }
 
 variable "min_nodes" {

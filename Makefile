@@ -30,6 +30,10 @@ help: ## Hiển thị help message
 # ──────────────────────────────────────────────────────────────
 # Cài đặt
 # ──────────────────────────────────────────────────────────────
+install-torch-cuda: ## Cài PyTorch với CUDA 12.8 (chạy TRƯỚC các lệnh install khác)
+	$(PYTHON) -m pip install --upgrade pip
+	$(PYTHON) -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+
 install: ## Cài đặt dependencies cơ bản
 	$(PYTHON) -m pip install --upgrade pip
 	$(PYTHON) -m pip install -e .
@@ -38,9 +42,8 @@ install-dev: ## Cài đặt dependencies cho development
 	$(PYTHON) -m pip install --upgrade pip
 	$(PYTHON) -m pip install -e ".[dev]"
 
-install-all: ## Cài đặt toàn bộ dependencies
-	$(PYTHON) -m pip install --upgrade pip
-	$(PYTHON) -m pip install -e ".[dev,training,tensorrt]"
+install-all: install-torch-cuda ## Cài đặt toàn bộ dependencies (PyTorch CUDA + all extras)
+	$(PYTHON) -m pip install -e ".[dev,training,tensorrt,airflow]"
 
 # ──────────────────────────────────────────────────────────────
 # Chất lượng mã nguồn

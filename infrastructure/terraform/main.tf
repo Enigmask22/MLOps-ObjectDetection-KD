@@ -20,7 +20,7 @@ terraform {
 
   # Backend lưu trữ state trên S3
   backend "s3" {
-    bucket         = "mlops-terraform-state"
+    bucket         = "mlops-terraform-state-038249977522"
     key            = "mlops-detection/terraform.tfstate"
     region         = "ap-southeast-1"
     encrypt        = true

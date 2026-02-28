@@ -11,15 +11,17 @@
 - [Tổng Quan](#tổng-quan)
 - [Kiến Trúc Hệ Thống](#kiến-trúc-hệ-thống)
 - [Yêu Cầu Hệ Thống](#yêu-cầu-hệ-thống)
-- [Cài Đặt Môi Trường](#cài-đặt-môi-trường)
-  - [1. Python và Dependencies](#1-python-và-dependencies)
+- [Setup Nhanh (Local Dev)](#setup-nhanh-local-dev)
+- [Setup Chi Tiết — Từng Tool](#setup-chi-tiết--từng-tool)
+  - [1. Python & PyTorch CUDA](#1-python--pytorch-cuda)
   - [2. DVC — Data Version Control](#2-dvc--data-version-control)
   - [3. MLflow — Experiment Tracking](#3-mlflow--experiment-tracking)
-  - [4. Docker](#4-docker)
-  - [5. Kubernetes (kubectl)](#5-kubernetes-kubectl)
+  - [4. Docker Desktop](#4-docker-desktop)
+  - [5. AWS CLI & Credentials](#5-aws-cli--credentials)
   - [6. Terraform — Infrastructure as Code](#6-terraform--infrastructure-as-code)
-  - [7. Apache Airflow — Workflow Orchestration](#7-apache-airflow--workflow-orchestration)
-  - [8. Prometheus + Grafana — Monitoring](#8-prometheus--grafana--monitoring)
+  - [7. Kubernetes (kubectl + EKS)](#7-kubernetes-kubectl--eks)
+  - [8. Apache Airflow — Workflow Orchestration](#8-apache-airflow--workflow-orchestration)
+  - [9. Prometheus + Grafana + Deepchecks — Monitoring](#9-prometheus--grafana--deepchecks--monitoring)
 - [Hướng Dẫn Sử Dụng](#hướng-dẫn-sử-dụng)
 - [Cấu Trúc Dự Án](#cấu-trúc-dự-án)
 - [Pipeline MLOps](#pipeline-mlops)
@@ -72,92 +74,211 @@
 
 ## Yêu Cầu Hệ Thống
 
-| Công cụ    | Phiên bản  | Bắt buộc | Ghi chú                |
-| ---------- | ---------- | -------- | ---------------------- |
-| Python     | >= 3.10    | ✅       | Khuyến nghị 3.11       |
-| NVIDIA GPU | CUDA 12.1+ | ⚠️       | Cần cho TensorRT INT8  |
-| Docker     | >= 24.0    | ✅       | Multi-stage build      |
-| kubectl    | >= 1.28    | ⚠️       | Cần cho K8s deployment |
-| Terraform  | >= 1.7     | ⚠️       | Cần cho AWS IaC        |
-| AWS CLI    | >= 2.0     | ⚠️       | Cần cho EKS + S3       |
-| Git        | >= 2.30    | ✅       |                        |
+| Công cụ        | Phiên bản | Cài qua       | Bắt buộc | Ghi chú                                            |
+| -------------- | --------- | ------------- | -------- | -------------------------------------------------- |
+| Python         | >= 3.10   | Terminal      | ✅       | Khuyến nghị 3.11                                   |
+| Git            | >= 2.30   | Terminal      | ✅       |                                                    |
+| Docker Desktop | >= 24.0   | **Website ⬇** | ✅       | Tải installer từ docker.com                        |
+| make           | any       | Terminal      | ✅       | Windows: `winget install GnuWin32.Make` + fix PATH |
+| NVIDIA GPU     | CUDA 12.x | —             | ⚠️       | Cần cho TensorRT INT8                              |
+| CUDA Toolkit   | >= 12.1   | **Website ⬇** | ⚠️       | Chỉ cần nếu dùng pycuda/TRT                        |
+| AWS CLI        | >= 2.0    | Terminal      | ⚠️       | Cần cho EKS + S3 + Terraform                       |
+| kubectl        | >= 1.28   | Terminal      | ⚠️       | Windows: cần fix PATH thủ công sau khi cài         |
+| Terraform      | >= 1.7    | Terminal      | ⚠️       | Cần mở terminal mới sau khi cài                    |
 
 > ⚠️ = Chỉ bắt buộc khi triển khai production. Có thể phát triển local mà không cần.
+>
+> **Website ⬇** = Phải tải từ website, không cài hoàn toàn bằng terminal.
+
+### Thứ tự phụ thuộc (Dependency Order)
+
+```
+Python → PyTorch CUDA → pip install project
+                                │
+Docker Desktop ─────────────────┤──→ docker build / docker run
+                                │
+AWS CLI → aws configure ────────┤──→ DVC S3 remote
+                                │──→ Terraform → EKS cluster → kubectl
+                                │──→ GitHub Secrets (CD pipeline)
+                                │
+Airflow ←───────────────────────┘
+Prometheus/Grafana (chạy qua Docker)
+```
 
 ---
 
-## Cài Đặt Môi Trường
+## Setup Nhanh (Local Dev)
 
-### 1. Python và Dependencies
+> Nếu chỉ muốn **chạy code, train, test, serve** trên local — không cần AWS/K8s/Terraform.
 
 ```bash
-# Clone repository
+# 1. Clone
 git clone https://github.com/Enigmask22/MLOps-ObjectDetection-KD.git
 cd MLOps-ObjectDetection-KD
 
-# Tạo virtual environment
+# 2. Virtual environment
 python -m venv .venv
 source .venv/bin/activate      # Linux/Mac
 # .venv\Scripts\activate       # Windows
 
-# === Cài đặt cơ bản (serving + monitoring) ===
-pip install -r requirements.txt
+# 3. PyTorch CUDA (BẮT BUỘC chạy trước — nếu bỏ qua sẽ cài CPU-only)
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
 
-# === Hoặc cài theo nhóm (editable mode) ===
-pip install -e "."                  # Core dependencies
-pip install -e ".[dev]"             # + pytest, ruff, mypy, pre-commit
-pip install -e ".[training]"        # + tensorboard, wandb
-pip install -e ".[tensorrt]"        # + tensorrt, pycuda (cần CUDA)
-pip install -e ".[airflow]"         # + apache-airflow
+# 4. Dependencies
+pip install -e ".[dev,training]"
 
-# === Cài đặt toàn bộ ===
-pip install -e ".[dev,training,tensorrt,airflow]"
+# 5. Kiểm tra
+python -c "import torch; print(f'PyTorch {torch.__version__}, CUDA: {torch.cuda.is_available()}')"
+pytest tests/ -v
 
-# === Hoặc dùng Makefile ===
-make install          # Core
-make install-dev      # Core + dev tools
-make install-all      # Everything
+# 6. Chạy API
+make serve
 ```
 
-**Kiểm tra cài đặt:**
+Xong! Các phần bên dưới là setup chi tiết từng tool cho full production pipeline.
+
+---
+
+## Setup Chi Tiết — Từng Tool
+
+> **Windows — Quy tắc vàng khi dùng `winget install`:**
+> Sau khi `winget install` bất kỳ tool nào (Terraform, AWS CLI, kubectl, make), PATH chưa được
+> cập nhật trong terminal đang mở. **BẮT BUỘC** mở terminal mới (PowerShell/CMD mới) trước khi
+> kiểm tra bằng `--version`. Hoặc thêm PATH thủ công trong terminal hiện tại (xem ví dụ từng mục).
+
+### Cài `make` trên Windows
+
+`make` cần thiết để chạy các lệnh `make k8s-deploy`, `make serve`, `make test`, v.v.
+
+```powershell
+# Cài make
+winget install GnuWin32.Make
+
+# Sau khi cài xong → MỞ TERMINAL MỚI, hoặc fix PATH ngay trong terminal hiện tại:
+$env:Path += ";C:\Program Files (x86)\GnuWin32\bin"
+[Environment]::SetEnvironmentVariable("Path", $env:Path + ";C:\Program Files (x86)\GnuWin32\bin", "User")
+
+# Kiểm tra
+make --version
+```
+
+---
+
+### 1. Python & PyTorch CUDA
+
+#### Bước 1: Clone & tạo virtualenv
+
+```bash
+git clone https://github.com/Enigmask22/MLOps-ObjectDetection-KD.git
+cd MLOps-ObjectDetection-KD
+
+python -m venv .venv
+source .venv/bin/activate      # Linux/Mac
+# .venv\Scripts\activate       # Windows
+```
+
+#### Bước 2: Cài PyTorch CUDA (⚠️ PHẢI chạy trước mọi lệnh install khác)
+
+```bash
+# CUDA 12.8 (khuyến nghị)
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+
+# Hoặc CUDA 12.4
+# pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
+
+# Hoặc dùng Makefile
+make install-torch-cuda
+```
+
+> **Tại sao?** `pip install torch` mặc định cài phiên bản **CPU-only**.
+> Phải dùng `--index-url` để trỏ đến PyTorch CUDA index.
+
+#### Bước 3: Cài dependencies
+
+```bash
+# Cơ bản (API serving + monitoring)
+pip install -r requirements.txt
+
+# Theo nhóm (editable mode)
+pip install -e "."                  # Core
+pip install -e ".[dev]"             # + pytest, ruff, mypy, pre-commit
+pip install -e ".[training]"        # + tensorboard, wandb
+pip install -e ".[tensorrt]"        # + tensorrt, pycuda (xem ghi chú bên dưới)
+pip install -e ".[airflow]"         # + apache-airflow
+
+# Tất cả cùng lúc (tự cài PyTorch CUDA trước)
+make install-all
+```
+
+> **Ghi chú về `pycuda`** (trong nhóm `[tensorrt]`):
+>
+> `pycuda` phải biên dịch từ source, cần cả hai:
+>
+> - **NVIDIA CUDA Toolkit** (cùng version với PyTorch) — [tải tại đây](https://developer.nvidia.com/cuda-downloads)
+> - **C++ Compiler**: Visual Studio Build Tools (`Desktop development with C++`) trên Windows, hoặc `gcc`/`g++` trên Linux
+>
+> **Nếu không có CUDA Toolkit** → bỏ `[tensorrt]`, dùng ONNX Runtime thay thế:
+>
+> ```bash
+> pip install -e ".[dev,training,airflow]"   # Không có tensorrt
+> ```
+
+#### Kiểm tra
 
 ```bash
 python -c "import torch; print(f'PyTorch {torch.__version__}, CUDA: {torch.cuda.is_available()}')"
+# Expected: PyTorch 2.x.x+cu128, CUDA: True
+
 python -c "from ultralytics import YOLO; print('Ultralytics OK')"
 ruff --version && mypy --version
-pytest --version
+pytest tests/ -v
 ```
 
 ---
 
 ### 2. DVC — Data Version Control
 
-DVC quản lý phiên bản dataset và pipeline reproducibility.
+DVC quản lý phiên bản dataset. Đã có trong `requirements.txt` — chỉ cần cấu hình remote.
+
+#### Tùy chọn A: Local Remote (development — không cần AWS)
 
 ```bash
-# DVC đã có trong requirements.txt, chỉ cần cấu hình remote
-
-# Xem cấu hình hiện tại
-cat .dvc/config
-
-# --- Tùy chọn A: S3 Remote (production) ---
-# Cần cấu hình AWS credentials trước (xem mục Terraform bên dưới)
-dvc remote modify s3_storage access_key_id <YOUR_KEY>
-dvc remote modify s3_storage secret_access_key <YOUR_SECRET>
-
-# --- Tùy chọn B: Local Remote (development) ---
+# Đã là mặc định trong .dvc/config
 dvc remote default local_storage
-mkdir -p /tmp/dvc-storage
+mkdir -p /tmp/dvc-storage       # Linux/Mac
+# mkdir C:\tmp\dvc-storage      # Windows
 
-# Các lệnh thường dùng
-dvc pull                # Kéo dữ liệu đã track
-dvc repro               # Chạy toàn bộ DVC pipeline
-dvc dag                 # Xem DAG pipeline
-dvc metrics show        # Xem metrics
-dvc push                # Đẩy dữ liệu mới lên remote
+# Sử dụng
+dvc pull
+dvc repro          # Chạy toàn bộ DVC pipeline
+dvc dag            # Xem pipeline DAG
 ```
 
-**DVC Pipeline** (định nghĩa trong `dvc.yaml`) gồm 6 stages:
+#### Tùy chọn B: S3 Remote (production — cần AWS CLI đã cấu hình)
+
+```bash
+# Chuyển sang S3 remote
+dvc remote default s3_storage
+
+# Cấu hình credentials (lưu vào .dvc/config.local — không commit lên git)
+dvc remote modify --local s3_storage access_key_id <YOUR_AWS_KEY>
+dvc remote modify --local s3_storage secret_access_key <YOUR_AWS_SECRET>
+
+# Hoặc nếu đã chạy "aws configure" thì DVC tự dùng ~/.aws/credentials
+
+# Test
+dvc push
+dvc pull
+```
+
+#### Chỉnh sửa credentials sau này
+
+```bash
+# Credentials lưu tại .dvc/config.local
+# Chạy lại lệnh modify hoặc mở file trực tiếp bằng editor
+```
+
+**DVC Pipeline** (trong `dvc.yaml`) gồm 6 stages:
 
 ```
 prepare_data → train_teacher → train_student_kd → export_models → evaluate → check_drift
@@ -167,7 +288,7 @@ prepare_data → train_teacher → train_student_kd → export_models → evalua
 
 ### 3. MLflow — Experiment Tracking
 
-MLflow theo dõi thí nghiệm, so sánh metrics và quản lý model registry.
+MLflow theo dõi thí nghiệm, so sánh metrics và quản lý model registry. Đã có trong `requirements.txt`.
 
 ```bash
 # === Khởi động MLflow Server (local) ===
@@ -177,87 +298,381 @@ mlflow server \
   --backend-store-uri sqlite:///mlflow.db \
   --default-artifact-root ./mlruns
 
-# Truy cập UI: http://localhost:5000
+# Mở trình duyệt: http://localhost:5000
+```
 
-# === Hoặc với S3 artifact storage (production) ===
+#### Production (S3 artifact storage)
+
+```bash
 mlflow server \
   --host 0.0.0.0 \
   --port 5000 \
   --backend-store-uri postgresql://user:pass@host/mlflow \
   --default-artifact-root s3://mlops-object-detection/mlflow-artifacts
-
-# === Cấu hình tracking URI ===
-export MLFLOW_TRACKING_URI=http://localhost:5000
 ```
 
-**Tích hợp trong project:**
+#### Cấu hình trong project
 
-- `configs/config.yaml` → `mlflow.tracking_uri` và `mlflow.artifact_location`
-- Training scripts tự động log metrics, params, artifacts vào MLflow
-- Model Registry quản lý phiên bản model (Staging → Production)
+```bash
+# Biến môi trường
+export MLFLOW_TRACKING_URI=http://localhost:5000
+
+# Hoặc chỉnh trong configs/config.yaml:
+#   mlflow:
+#     tracking_uri: http://localhost:5000
+#     artifact_location: ./mlruns
+```
+
+Training scripts tự động log metrics, params, artifacts vào MLflow.
 
 ---
 
-### 4. Docker
+### 4. Docker Desktop
+
+> ⚠️ **Phải tải từ website** — không cài hoàn toàn bằng terminal.
+
+#### Cài đặt
+
+1. Vào [docker.com/get-started](https://www.docker.com/get-started/) → tải Docker Desktop
+2. Chạy installer → khởi động lại máy
+3. Mở Docker Desktop → đảm bảo engine đang chạy
+
+#### Sử dụng
 
 ```bash
-# === Build Docker image (inference) ===
+# Kiểm tra
+docker --version
+
+# Build image (inference)
 make docker-build
 # Hoặc:
-docker build -t mlops-detection:latest \
-  -f infrastructure/docker/Dockerfile .
+docker build -t mlops-detection:latest -f infrastructure/docker/Dockerfile .
 
-# === Chạy container (với GPU) ===
-make docker-run
-# Hoặc:
+# Chạy container (với GPU)
 docker run -d --gpus all \
   -p 8000:8000 \
   -v $(pwd)/models:/models \
   --name mlops-api \
   mlops-detection:latest
 
-# API: http://localhost:8000
-# Swagger docs: http://localhost:8000/docs
+# API:  http://localhost:8000
+# Docs: http://localhost:8000/docs
 
-# === Build training image ===
+# Build training image
 make docker-build-training
 
-# === Push lên GHCR ===
+# Push lên GHCR
 make docker-push
 ```
 
 ---
 
-### 5. Kubernetes (kubectl)
+### 5. AWS CLI & Credentials
+
+> ⚠️ **Cần tạo tài khoản AWS + IAM User từ website** trước.
+
+AWS CLI là điều kiện tiên quyết cho: **DVC S3**, **Terraform**, **EKS**, **CD pipeline**.
+
+#### Bước 1: Tạo IAM User (trên web)
+
+1. Vào [console.aws.amazon.com/iam](https://console.aws.amazon.com/iam)
+2. **Users** → **Create user** → đặt tên (vd: `mlops-admin`)
+3. Gán quyền: `AdministratorAccess` (hoặc tối thiểu: `AmazonEKSFullAccess`, `AmazonS3FullAccess`, `AmazonDynamoDBFullAccess`, `AmazonEC2FullAccess`)
+4. Tab **Security credentials** → **Create access key** → chọn "CLI"
+5. **Lưu lại** `Access Key ID` + `Secret Access Key` (chỉ hiện 1 lần!)
+
+#### Bước 2: Cài AWS CLI (terminal)
 
 ```bash
-# === Cài đặt kubectl ===
-# Linux:
-curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
-# macOS: brew install kubectl
-# Windows: winget install Kubernetes.kubectl
+# Windows
+winget install Amazon.AWSCLI
+# → MỞ TERMINAL MỚI sau khi cài (PATH mới chưa nhận ở terminal cũ)
 
-# === Kết nối tới EKS cluster ===
-aws eks update-kubeconfig \
-  --name mlops-inference-cluster \
+# Linux
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip && sudo ./aws/install
+
+# macOS
+brew install awscli
+```
+
+#### Bước 3: Cấu hình credentials
+
+```bash
+aws configure
+# AWS Access Key ID [None]:     <paste Access Key>
+# AWS Secret Access Key [None]: <paste Secret Key>
+# Default region name [None]:   ap-southeast-1
+# Default output format [None]: json
+
+# Kiểm tra
+aws sts get-caller-identity
+```
+
+#### Credentials lưu ở đâu? Chỉnh sửa sau này?
+
+```
+~/.aws/credentials    # Windows: C:\Users\<tên>\.aws\credentials
+~/.aws/config         # region, output format
+```
+
+Chạy lại `aws configure` hoặc mở file bằng editor. Cả DVC S3, Terraform, AWS CLI **đều đọc chung** file này.
+
+---
+
+### 6. Terraform — Infrastructure as Code
+
+Terraform tạo toàn bộ hạ tầng AWS: VPC, EKS, S3 data bucket, ECR, SQS.
+
+> **Yêu cầu:** AWS CLI đã cấu hình (mục 5 ở trên).
+
+#### Bước 1: Cài Terraform
+
+```powershell
+# Windows
+winget install Hashicorp.Terraform
+# → BẮT BUỘC mở terminal mới sau khi cài (PATH chưa nhận ở terminal cũ)
+
+# macOS
+brew install terraform
+
+# Linux
+# https://releases.hashicorp.com/terraform/
+
+# Kiểm tra (trong terminal MỚI)
+terraform --version
+```
+
+#### Bước 2: Tạo S3 bucket + DynamoDB cho Terraform state (chỉ làm 1 lần)
+
+Terraform cần S3 bucket để lưu state file. Bucket name phải unique toàn cầu — thêm AWS Account ID làm suffix.
+
+```powershell
+# Lấy Account ID
+aws sts get-caller-identity --query Account --output text
+# Ví dụ: 038249977522
+
+# Tạo S3 bucket (thay <ACCOUNT_ID> bằng kết quả ở trên)
+aws s3api create-bucket `
+  --bucket mlops-terraform-state-<ACCOUNT_ID> `
+  --region ap-southeast-1 `
+  --create-bucket-configuration LocationConstraint=ap-southeast-1
+
+# Bật versioning
+aws s3api put-bucket-versioning `
+  --bucket mlops-terraform-state-<ACCOUNT_ID> `
+  --versioning-configuration Status=Enabled
+
+# Tạo DynamoDB table cho state locking
+aws dynamodb create-table `
+  --table-name terraform-locks `
+  --attribute-definitions AttributeName=LockID,AttributeType=S `
+  --key-schema AttributeName=LockID,KeyType=HASH `
+  --billing-mode PAY_PER_REQUEST `
+  --region ap-southeast-1
+```
+
+> **Quan trọng:** Cập nhật bucket name trong `infrastructure/terraform/main.tf`:
+>
+> ```hcl
+> backend "s3" {
+>   bucket = "mlops-terraform-state-<ACCOUNT_ID>"   # ← sửa ở đây
+> }
+> ```
+>
+> ⚠️ **Đừng nhầm:** Tên EKS cluster (`mlops-inference-cluster`) **KHÁC** tên S3 state bucket (`mlops-terraform-state-<ACCOUNT_ID>`).
+> `aws eks update-kubeconfig --name` phải nhập `mlops-inference-cluster`, không phải tên bucket S3.
+
+#### Bước 3: Chạy Terraform
+
+```powershell
+cd infrastructure/terraform
+
+terraform init              # Kết nối S3 backend + tải providers
+terraform plan -out=tfplan  # Preview resources sẽ tạo
+terraform apply tfplan      # Tạo hạ tầng (~30-40 phút — bình thường, đừng ngắt)
+
+# Hoặc dùng Makefile:
+make terraform-init
+make terraform-plan
+make terraform-apply
+```
+
+> **Lưu ý:** `terraform plan -out=tfplan` tạo file `tfplan` **trên máy bạn** (tại thư mục `infrastructure/terraform/`), không phải trên S3. S3 bucket chỉ lưu `terraform.tfstate` sau khi `apply` xong.
+>
+> **Thời gian chạy bình thường:**
+>
+> - VPC + Security Groups: ~3 phút
+> - EKS Control Plane: ~12 phút
+> - Mỗi Node Group (EC2): ~15-20 phút
+> - **Tổng: ~30-40 phút** — cứ để chạy, không cần làm gì.
+
+#### Biến cấu hình (`variables.tf`)
+
+| Biến                | Mặc định                  | Mô tả                 |
+| ------------------- | ------------------------- | --------------------- |
+| `aws_region`        | `ap-southeast-1`          | AWS Region            |
+| `eks_cluster_name`  | `mlops-inference-cluster` | Tên EKS Cluster       |
+| `gpu_instance_type` | `t3.medium`               | Instance type cho EKS |
+| `min_nodes`         | `2`                       | Số node tối thiểu     |
+| `max_nodes`         | `10`                      | Số node tối đa        |
+| `s3_bucket_name`    | `mlops-data-bucket`       | S3 data bucket        |
+
+#### Quản lý chi phí
+
+| Tình huống              | Làm gì              | Chi phí còn lại                |
+| ----------------------- | ------------------- | ------------------------------ |
+| Demo xong, mai dùng lại | Scale nodes về 0    | ~$0.10/giờ (chỉ Control Plane) |
+| Không dùng vài ngày     | `terraform destroy` | $0                             |
+| Đang develop liên tục   | Giữ nguyên          | ~$0.75+/giờ                    |
+
+```powershell
+# Tắt (scale về 0)
+aws eks update-nodegroup-config `
+  --cluster-name mlops-inference-cluster `
+  --nodegroup-name cpu_general `
+  --scaling-config minSize=0,maxSize=10,desiredSize=0 `
   --region ap-southeast-1
 
-# === Deploy toàn bộ manifests ===
+# Bật lại (scale lên 1)
+aws eks update-nodegroup-config `
+  --cluster-name mlops-inference-cluster `
+  --nodegroup-name cpu_general `
+  --scaling-config minSize=1,maxSize=10,desiredSize=1 `
+  --region ap-southeast-1
+
+# Xóa hoàn toàn (tiết kiệm 100%)
+terraform destroy
+# Hoặc: make terraform-destroy
+```
+
+> **Xem resources đang chạy:**
+>
+> ```powershell
+> terraform state list   # Liệt kê tất cả resources Terraform đang quản lý
+> aws eks list-clusters --region ap-southeast-1
+> aws eks list-nodegroups --cluster-name mlops-inference-cluster --region ap-southeast-1
+> ```
+
+---
+
+### 7. Kubernetes (kubectl + EKS)
+
+> **Yêu cầu:** AWS CLI đã cấu hình + Terraform đã apply (EKS cluster phải tồn tại).
+
+#### Bước 1: Cài kubectl
+
+```bash
+# Windows
+winget install Kubernetes.kubectl
+
+# macOS
+brew install kubectl
+
+# Linux
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+
+# Kiểm tra
+kubectl version --client
+```
+
+> **Windows — kubectl không nhận sau khi cài winget:**
+> `winget` cài kubectl vào thư mục WinGet packages, không tự thêm vào PATH.
+> Fix bằng cách tìm đường dẫn và thêm thủ công:
+>
+> ```powershell
+> # Tìm đường dẫn kubectl.exe
+> $kubectlDir = Get-ChildItem "$env:LOCALAPPDATA\Microsoft\WinGet\Packages" -Recurse -Filter "kubectl.exe" | Select-Object -First 1 -ExpandProperty DirectoryName
+> Write-Host $kubectlDir
+>
+> # Thêm vào PATH vĩnh viễn
+> [Environment]::SetEnvironmentVariable("Path", $env:Path + ";$kubectlDir", "User")
+> $env:Path += ";$kubectlDir"
+>
+> # Kiểm tra
+> kubectl version --client
+> ```
+
+#### Bước 2: Kết nối tới EKS cluster
+
+```powershell
+# Chỉ chạy được SAU KHI terraform apply tạo xong EKS cluster
+aws eks update-kubeconfig `
+  --name mlops-inference-cluster `
+  --region ap-southeast-1
+
+# Kiểm tra kết nối
+kubectl get nodes
+```
+
+> ❌ Lỗi `No cluster found for name: mlops-inference-cluster`
+> → EKS cluster chưa tồn tại. Cần chạy `terraform apply` trước (mục 6).
+>
+> ❌ Lỗi `the server has asked for the client to provide credentials`
+> → IAM user chưa được cấp quyền vào cluster. Fix:
+>
+> ```powershell
+> $USER_ARN = aws sts get-caller-identity --query Arn --output text
+>
+> aws eks create-access-entry `
+>   --cluster-name mlops-inference-cluster `
+>   --principal-arn $USER_ARN `
+>   --region ap-southeast-1
+>
+> aws eks associate-access-policy `
+>   --cluster-name mlops-inference-cluster `
+>   --principal-arn $USER_ARN `
+>   --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy `
+>   --access-scope type=cluster `
+>   --region ap-southeast-1
+> ```
+>
+> ❌ `kubectl get nodes` trả về `No resources found`
+> → Node groups đang ở `desiredSize=0`. Scale lên:
+>
+> ```powershell
+> aws eks update-nodegroup-config `
+>   --cluster-name mlops-inference-cluster `
+>   --nodegroup-name cpu_general `
+>   --scaling-config minSize=1,maxSize=10,desiredSize=1 `
+>   --region ap-southeast-1
+>
+> aws eks update-nodegroup-config `
+>   --cluster-name mlops-inference-cluster `
+>   --nodegroup-name gpu_inference `
+>   --scaling-config minSize=1,maxSize=10,desiredSize=1 `
+>   --region ap-southeast-1
+> # Đợi ~3-5 phút rồi chạy lại kubectl get nodes
+> ```
+
+#### Bước 3: Tạo namespace và Deploy
+
+```powershell
+# Tạo namespace trước (chỉ làm 1 lần)
+kubectl create namespace mlops-production --dry-run=client -o yaml | kubectl apply -f -
+
+# Cài KEDA vào cluster
+kubectl apply -f https://github.com/kedacore/keda/releases/download/v2.13.0/keda-2.13.0.yaml
+
+# Đợi KEDA pods ready (~1-2 phút)
+kubectl get pods -n keda
+
+# Deploy tất cả manifests (chạy từ thư mục gốc project)
 make k8s-deploy
 # Hoặc thủ công:
-kubectl apply -f infrastructure/kubernetes/pvc.yaml
-kubectl apply -f infrastructure/kubernetes/deployment.yaml
-kubectl apply -f infrastructure/kubernetes/service.yaml
-kubectl apply -f infrastructure/kubernetes/hpa.yaml
+kubectl apply -f infrastructure/kubernetes/pvc.yaml -n mlops-production
+kubectl apply -f infrastructure/kubernetes/deployment.yaml -n mlops-production
+kubectl apply -f infrastructure/kubernetes/service.yaml -n mlops-production
+kubectl apply -f infrastructure/kubernetes/hpa.yaml -n mlops-production
 
-# === Kiểm tra trạng thái ===
+# Kiểm tra trạng thái
 make k8s-status
 kubectl get pods -n mlops-production -l app=mlops-detection
 kubectl get svc  -n mlops-production
 kubectl get hpa  -n mlops-production
 
-# === Xem logs / Gỡ bỏ ===
+# Xem logs / Gỡ bỏ
 make k8s-logs
 make k8s-delete
 ```
@@ -274,63 +689,18 @@ make k8s-delete
 
 ---
 
-### 6. Terraform — Infrastructure as Code
+### 8. Apache Airflow — Workflow Orchestration
 
-Terraform provision toàn bộ hạ tầng AWS: VPC, EKS, S3, ECR, SQS.
-
-```bash
-# === Cài đặt Terraform ===
-# Linux: https://releases.hashicorp.com/terraform/
-# macOS: brew install terraform
-# Windows: winget install Hashicorp.Terraform
-
-# === Cấu hình AWS CLI ===
-aws configure
-# AWS Access Key ID:     <YOUR_KEY>
-# AWS Secret Access Key: <YOUR_SECRET>
-# Default region:        ap-southeast-1
-
-# === Khởi tạo và triển khai ===
-cd infrastructure/terraform
-
-terraform init              # Khởi tạo providers + backend
-terraform plan -out=tfplan  # Preview thay đổi
-terraform apply tfplan      # Tạo hạ tầng
-
-# Hoặc dùng Makefile:
-make terraform-init
-make terraform-plan
-make terraform-apply
-
-# === Hủy hạ tầng (cleanup) ===
-make terraform-destroy
-```
-
-**Biến cấu hình** (`infrastructure/terraform/variables.tf`):
-
-| Biến                | Mặc định                  | Mô tả                |
-| ------------------- | ------------------------- | -------------------- |
-| `aws_region`        | `ap-southeast-1`          | AWS Region           |
-| `eks_cluster_name`  | `mlops-inference-cluster` | Tên EKS Cluster      |
-| `gpu_instance_type` | `g4dn.xlarge`             | GPU instance cho EKS |
-| `min_nodes`         | `2`                       | Số node tối thiểu    |
-| `max_nodes`         | `10`                      | Số node tối đa       |
-| `s3_bucket_name`    | `mlops-data-bucket`       | S3 bucket name       |
-
----
-
-### 7. Apache Airflow — Workflow Orchestration
-
-Airflow quản lý pipeline Continuous Training (CT), tự động retrain khi phát hiện data drift.
+Airflow quản lý pipeline Continuous Training (CT) — tự động retrain khi phát hiện data drift.
 
 ```bash
-# === Cài đặt Airflow ===
+# Cài đặt
 pip install -e ".[airflow]"
-# Hoặc standalone:
-export AIRFLOW_HOME=~/airflow
-pip install apache-airflow==2.8.0 apache-airflow-providers-cncf-kubernetes
 
-# === Khởi tạo ===
+# Khởi tạo
+export AIRFLOW_HOME=~/airflow           # Linux/Mac
+# $env:AIRFLOW_HOME = "$HOME\airflow"   # Windows PowerShell
+
 airflow db init
 
 airflow users create \
@@ -338,14 +708,14 @@ airflow users create \
   --firstname Admin --lastname User \
   --role Admin --email admin@example.com
 
-# === Copy DAG vào Airflow ===
+# Copy DAG vào Airflow
 cp pipelines/airflow/dags/mlops_pipeline.py $AIRFLOW_HOME/dags/
 
-# === Khởi động ===
+# Khởi động (2 terminal riêng)
 airflow webserver --port 8080   # Terminal 1
 airflow scheduler               # Terminal 2
 
-# UI: http://localhost:8080
+# Mở trình duyệt: http://localhost:8080 (admin / admin)
 ```
 
 **DAG `mlops_ct_pipeline`:**
@@ -357,34 +727,46 @@ airflow scheduler               # Terminal 2
 | `trigger_retraining` | KubernetesPodOperator — chạy training trên GPU pod |
 | `register_model`     | Đăng ký model mới vào MLflow Registry              |
 
-- **Schedule:** Daily 02:00 UTC + Grafana webhook trigger khi drift alert
+- **Schedule:** hàng ngày 02:00 UTC + Grafana webhook khi drift alert
 - **Retries:** 2 lần, delay 5 phút | **Timeout:** 4 giờ
 
 ---
 
-### 8. Prometheus + Grafana — Monitoring
+### 9. Prometheus + Grafana + Deepchecks — Monitoring
+
+#### Prometheus (chạy qua Docker)
 
 ```bash
-# === Prometheus ===
-# Tải: https://prometheus.io/download/
-# Cấu hình scrape target trong prometheus.yml:
-#   scrape_configs:
-#     - job_name: 'mlops-detection'
-#       static_configs:
-#         - targets: ['localhost:8000']
-#       metrics_path: '/metrics'
+# Tạo file cấu hình prometheus.yml:
+# scrape_configs:
+#   - job_name: 'mlops-detection'
+#     static_configs:
+#       - targets: ['host.docker.internal:8000']
+#     metrics_path: '/metrics'
 
-prometheus --config.file=prometheus.yml
+docker run -d --name prometheus \
+  -p 9090:9090 \
+  -v $(pwd)/prometheus.yml:/etc/prometheus/prometheus.yml \
+  prom/prometheus
+
 # UI: http://localhost:9090
-
-# === Grafana ===
-# Tải: https://grafana.com/grafana/download
-grafana-server
-# UI: http://localhost:3000 (admin/admin)
-# → Add Data Source: Prometheus → Import Dashboard
 ```
 
-**Deepchecks Data Drift** (tích hợp sẵn trong `src/monitoring/drift_detector.py`):
+#### Grafana (chạy qua Docker)
+
+```bash
+docker run -d --name grafana \
+  -p 3000:3000 \
+  grafana/grafana
+
+# UI: http://localhost:3000 (admin / admin)
+# → Settings → Data Sources → Add Prometheus → URL: http://host.docker.internal:9090
+# → Import Dashboard
+```
+
+#### Deepchecks Data Drift
+
+Deepchecks đã tích hợp sẵn trong `src/monitoring/drift_detector.py`. Không cần setup riêng.
 
 ```bash
 # Kiểm tra drift thủ công
@@ -397,7 +779,7 @@ print(result)
 "
 ```
 
-**Metrics expose tại `/metrics`:**
+#### Metrics expose tại `/metrics`
 
 | Metric                          | Loại      | Mô tả                             |
 | ------------------------------- | --------- | --------------------------------- |
@@ -411,77 +793,36 @@ print(result)
 
 ## Hướng Dẫn Sử Dụng
 
-### 1. Huấn Luyện Teacher
-
 ```bash
-python -m scripts.train_teacher --config configs/config.yaml
-# Hoặc: make train-teacher
-```
+# Huấn luyện Teacher
+make train-teacher
 
-### 2. Chưng Cất Tri Thức (Student KD)
+# Chưng Cất Tri Thức (Student KD)
+make train-student
 
-```bash
-python -m scripts.train_student_kd --config configs/config.yaml
-# Hoặc: make train-student
-```
+# Export mô hình (ONNX + TensorRT)
+make export
 
-### 3. Export Mô Hình (ONNX + TensorRT)
+# Benchmark
+make benchmark
 
-```bash
-python -m scripts.export_model \
-    --config configs/config.yaml \
-    --model models/student/best.pt \
-    --output models/exported
-# Hoặc: make export
-```
+# Khởi động API Server → http://localhost:8000/docs
+make serve
 
-### 4. Benchmark
-
-```bash
-python -m scripts.benchmark --config configs/config.yaml
-# Hoặc: make benchmark
-```
-
-### 5. Khởi Động API Server
-
-```bash
-python -m src.serving.app --config configs/config.yaml
-# Hoặc: make serve
-
-# API: http://localhost:8000
-# Docs: http://localhost:8000/docs
-```
-
-### 6. Gradio Demo
-
-```bash
+# Gradio Demo → http://localhost:7860
 python -m src.serving.gradio_ui
-# UI: http://localhost:7860
-```
 
-### 7. Chạy Tests
+# Chạy Tests (63 tests)
+make test
 
-```bash
-pytest tests/ -v --cov=src --cov-report=html
-# Hoặc: make test
+# DVC Pipeline
+dvc repro          # Chạy pipeline
+dvc dag            # Xem DAG
+dvc metrics show   # Xem metrics
 
-# Với coverage threshold (>= 80%):
-make test-cov
-```
-
-### 8. DVC Pipeline
-
-```bash
-dvc repro           # Chạy toàn bộ pipeline
-dvc dag             # Xem DAG
-dvc metrics show    # Xem metrics
-```
-
-### 9. Code Quality
-
-```bash
-make lint            # Ruff check + MyPy
-make format          # Auto-format code
+# Code Quality
+make lint          # Ruff check + MyPy
+make format        # Auto-format
 ```
 
 ---
@@ -581,7 +922,8 @@ CI success on main
     └── Terraform ────── Init → Plan → Apply (auto-approve)
 ```
 
-> CD pipeline tự động bỏ qua nếu chưa cấu hình AWS credentials.
+> CI (Lint + Test + Build) hoạt động **không cần** AWS secrets.
+> CD tự động **bỏ qua** nếu chưa cấu hình AWS credentials.
 
 ### CT — Continuous Training (Airflow)
 
@@ -603,16 +945,13 @@ Rolling Update (zero-downtime)
 
 ## Cấu Hình GitHub Secrets
 
-Để CI/CD hoạt động đầy đủ, cấu hình tại **Settings → Secrets and variables → Actions**:
+Cấu hình tại: **Repo → Settings → Secrets and variables → Actions → New repository secret**
 
-| Secret                  | Bắt buộc | Mô tả                                      |
-| ----------------------- | -------- | ------------------------------------------ |
-| `GITHUB_TOKEN`          | Tự động  | Có sẵn, dùng để push Docker image lên GHCR |
-| `AWS_ACCESS_KEY_ID`     | ⚠️ CD    | AWS IAM Access Key cho EKS + Terraform     |
-| `AWS_SECRET_ACCESS_KEY` | ⚠️ CD    | AWS IAM Secret Key                         |
-
-> **Lưu ý:** CI pipeline (Lint + Test + Build) hoạt động **không cần** AWS secrets.
-> CD pipeline sẽ tự động **bỏ qua** nếu chưa cấu hình AWS credentials.
+| Secret                  | Bắt buộc | Mô tả                                  |
+| ----------------------- | -------- | -------------------------------------- |
+| `GITHUB_TOKEN`          | Tự động  | Có sẵn — push Docker image lên GHCR    |
+| `AWS_ACCESS_KEY_ID`     | ⚠️ CD    | AWS IAM Access Key cho EKS + Terraform |
+| `AWS_SECRET_ACCESS_KEY` | ⚠️ CD    | AWS IAM Secret Key                     |
 
 ---
 

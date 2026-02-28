@@ -51,7 +51,7 @@ training = [
 ]
 tensorrt = [
     "tensorrt>=10.0",
-    "pycuda>=2024.1",
+    "pycuda>=2024.1",  # Yêu cầu: CUDA Toolkit + C++ compiler (MSVC trên Windows)
 ]
 airflow = [
     "apache-airflow>=2.9.0",

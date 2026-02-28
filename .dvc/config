@@ -1,10 +1,8 @@
 [core]
-    remote = s3_storage
+    remote = local_storage
     autostage = true
-
-[remote "s3_storage"]
+['remote "s3_storage"']
     url = s3://mlops-object-detection/dvc-storage
     region = ap-southeast-1
-
-[remote "local_storage"]
+['remote "local_storage"']
     url = /tmp/dvc-storage
